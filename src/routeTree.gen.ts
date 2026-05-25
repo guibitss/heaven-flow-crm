@@ -9,38 +9,185 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRelatoriosRouteImport } from './routes/_app/relatorios'
+import { Route as AppIaRouteImport } from './routes/_app/ia'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppCrmRouteImport } from './routes/_app/crm'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app/configuracoes'
+import { Route as AppCaptacaoRouteImport } from './routes/_app/captacao'
+import { Route as AppVendedoresIndexRouteImport } from './routes/_app/vendedores/index'
+import { Route as AppVendedoresIdRouteImport } from './routes/_app/vendedores/$id'
+import { Route as AppCrmIdRouteImport } from './routes/_app/crm.$id'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIaRoute = AppIaRouteImport.update({
+  id: '/ia',
+  path: '/ia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmRoute = AppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCaptacaoRoute = AppCaptacaoRouteImport.update({
+  id: '/captacao',
+  path: '/captacao',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVendedoresIndexRoute = AppVendedoresIndexRouteImport.update({
+  id: '/vendedores/',
+  path: '/vendedores/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVendedoresIdRoute = AppVendedoresIdRouteImport.update({
+  id: '/vendedores/$id',
+  path: '/vendedores/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmIdRoute = AppCrmIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppCrmRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/captacao': typeof AppCaptacaoRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
+  '/crm': typeof AppCrmRouteWithChildren
+  '/dashboard': typeof AppDashboardRoute
+  '/ia': typeof AppIaRoute
+  '/relatorios': typeof AppRelatoriosRoute
+  '/crm/$id': typeof AppCrmIdRoute
+  '/vendedores/$id': typeof AppVendedoresIdRoute
+  '/vendedores/': typeof AppVendedoresIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/captacao': typeof AppCaptacaoRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
+  '/crm': typeof AppCrmRouteWithChildren
+  '/dashboard': typeof AppDashboardRoute
+  '/ia': typeof AppIaRoute
+  '/relatorios': typeof AppRelatoriosRoute
+  '/crm/$id': typeof AppCrmIdRoute
+  '/vendedores/$id': typeof AppVendedoresIdRoute
+  '/vendedores': typeof AppVendedoresIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/captacao': typeof AppCaptacaoRoute
+  '/_app/configuracoes': typeof AppConfiguracoesRoute
+  '/_app/crm': typeof AppCrmRouteWithChildren
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/ia': typeof AppIaRoute
+  '/_app/relatorios': typeof AppRelatoriosRoute
+  '/_app/crm/$id': typeof AppCrmIdRoute
+  '/_app/vendedores/$id': typeof AppVendedoresIdRoute
+  '/_app/vendedores/': typeof AppVendedoresIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/captacao'
+    | '/configuracoes'
+    | '/crm'
+    | '/dashboard'
+    | '/ia'
+    | '/relatorios'
+    | '/crm/$id'
+    | '/vendedores/$id'
+    | '/vendedores/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/captacao'
+    | '/configuracoes'
+    | '/crm'
+    | '/dashboard'
+    | '/ia'
+    | '/relatorios'
+    | '/crm/$id'
+    | '/vendedores/$id'
+    | '/vendedores'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/login'
+    | '/_app/captacao'
+    | '/_app/configuracoes'
+    | '/_app/crm'
+    | '/_app/dashboard'
+    | '/_app/ia'
+    | '/_app/relatorios'
+    | '/_app/crm/$id'
+    | '/_app/vendedores/$id'
+    | '/_app/vendedores/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +195,112 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/relatorios': {
+      id: '/_app/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ia': {
+      id: '/_app/ia'
+      path: '/ia'
+      fullPath: '/ia'
+      preLoaderRoute: typeof AppIaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm': {
+      id: '/_app/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AppCrmRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/captacao': {
+      id: '/_app/captacao'
+      path: '/captacao'
+      fullPath: '/captacao'
+      preLoaderRoute: typeof AppCaptacaoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vendedores/': {
+      id: '/_app/vendedores/'
+      path: '/vendedores'
+      fullPath: '/vendedores/'
+      preLoaderRoute: typeof AppVendedoresIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vendedores/$id': {
+      id: '/_app/vendedores/$id'
+      path: '/vendedores/$id'
+      fullPath: '/vendedores/$id'
+      preLoaderRoute: typeof AppVendedoresIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm/$id': {
+      id: '/_app/crm/$id'
+      path: '/$id'
+      fullPath: '/crm/$id'
+      preLoaderRoute: typeof AppCrmIdRouteImport
+      parentRoute: typeof AppCrmRoute
+    }
   }
 }
 
+interface AppCrmRouteChildren {
+  AppCrmIdRoute: typeof AppCrmIdRoute
+}
+
+const AppCrmRouteChildren: AppCrmRouteChildren = {
+  AppCrmIdRoute: AppCrmIdRoute,
+}
+
+const AppCrmRouteWithChildren =
+  AppCrmRoute._addFileChildren(AppCrmRouteChildren)
+
+interface AppRouteChildren {
+  AppCaptacaoRoute: typeof AppCaptacaoRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
+  AppCrmRoute: typeof AppCrmRouteWithChildren
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppIaRoute: typeof AppIaRoute
+  AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppVendedoresIdRoute: typeof AppVendedoresIdRoute
+  AppVendedoresIndexRoute: typeof AppVendedoresIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppCaptacaoRoute: AppCaptacaoRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
+  AppCrmRoute: AppCrmRouteWithChildren,
+  AppDashboardRoute: AppDashboardRoute,
+  AppIaRoute: AppIaRoute,
+  AppRelatoriosRoute: AppRelatoriosRoute,
+  AppVendedoresIdRoute: AppVendedoresIdRoute,
+  AppVendedoresIndexRoute: AppVendedoresIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
