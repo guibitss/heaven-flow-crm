@@ -13,13 +13,16 @@ import {
 } from "@dnd-kit/core";
 import { Phone, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { leads as seedLeads, statusLabels, statusCores, fonteLabels, fonteCores, vendedores } from "@/lib/mock-data";
+import { statusLabels, fonteLabels, fonteCores } from "@/lib/mock-data";
 import type { Lead, LeadStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useLeads, useVendedores, useUpdateLeadStatus, useLeadsRealtime } from "@/hooks/use-crm-data";
+import { mapLeadFromDb } from "@/lib/db-mappers";
+import { TempoIndicador } from "@/components/crm/tempo-indicador";
 
 export const Route = createFileRoute("/_app/crm")({
   component: CrmPage,
@@ -28,7 +31,14 @@ export const Route = createFileRoute("/_app/crm")({
 const colunas: LeadStatus[] = ["bruto", "abordado", "respondeu", "qualificado", "negociacao", "ganho"];
 
 function CrmPage() {
-  const [leads, setLeads] = useState<Lead[]>(seedLeads);
+  useLeadsRealtime();
+  const { data: leadsRaw = [] } = useLeads();
+  const { data: vendedoresData = [] } = useVendedores();
+  const updateStatus = useUpdateLeadStatus();
+
+  const leads = useMemo(() => (leadsRaw as any[]).map(mapLeadFromDb), [leadsRaw]);
+  const vendedores = vendedoresData as any[];
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [vendedorF, setVendedorF] = useState("all");
@@ -60,7 +70,8 @@ function CrmPage() {
     const overId = e.over?.id;
     if (!overId) return;
     const novoStatus = String(overId) as LeadStatus;
-    setLeads((ls) => ls.map((l) => l.id === e.active.id ? { ...l, status: novoStatus } : l));
+    const id = String(e.active.id);
+    updateStatus.mutate({ id, status: novoStatus });
     toast.success(`Lead movido para ${statusLabels[novoStatus]}`);
   }
 
@@ -152,12 +163,12 @@ function getColColor(s: LeadStatus): string {
   return map[s];
 }
 
-function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
+function LeadCard({ lead, dragging }: { lead: Lead & { handoff_em?: string; primeira_resposta_vendedor_em?: string; tempo_primeira_resposta_segundos?: number }; dragging?: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id });
-  const vendedor = vendedores.find((v) => v.id === lead.vendedor_id);
 
   const tempBorder = lead.temperatura === "quente" ? "border-l-heaven-orange" : lead.temperatura === "morno" ? "border-l-yellow-500" : "border-l-heaven-gray";
   const scoreCor = lead.score > 80 ? "bg-heaven-orange/20 text-heaven-orange glow-orange" : lead.score > 50 ? "bg-yellow-500/20 text-yellow-500" : "bg-bg-tertiary text-muted-foreground";
+  const showTempo = lead.status === "qualificado" || lead.status === "negociacao";
 
   return (
     <div
@@ -184,12 +195,14 @@ function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
             <span className="font-mono">{lead.decisor.telefone}</span>
           </div>
         </div>
-        <div className="flex items-center justify-between pt-1">
-          <span className={cn("text-[10px] px-2 py-0.5 rounded-sm border", fonteCores[lead.fonte])}>{fonteLabels[lead.fonte]}</span>
-          {vendedor && (
-            <div className="h-6 w-6 rounded-full bg-bg-secondary overflow-hidden border border-border-strong">
-              <img src={vendedor.avatar_url} alt="" title={vendedor.nome} />
-            </div>
+        <div className="flex items-center justify-between pt-1 gap-2">
+          <span className={cn("text-[10px] px-2 py-0.5 rounded-sm border shrink-0", fonteCores[lead.fonte])}>{fonteLabels[lead.fonte]}</span>
+          {showTempo && (
+            <TempoIndicador
+              handoffEm={lead.handoff_em ?? null}
+              primeiraRespostaEm={lead.primeira_resposta_vendedor_em ?? null}
+              tempoSegundos={lead.tempo_primeira_resposta_segundos ?? null}
+            />
           )}
         </div>
       </Link>
