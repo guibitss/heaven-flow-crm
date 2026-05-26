@@ -13,13 +13,16 @@ import {
 } from "@dnd-kit/core";
 import { Phone, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { leads as seedLeads, statusLabels, statusCores, fonteLabels, fonteCores, vendedores } from "@/lib/mock-data";
+import { statusLabels, fonteLabels, fonteCores } from "@/lib/mock-data";
 import type { Lead, LeadStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useLeads, useVendedores, useUpdateLeadStatus, useLeadsRealtime } from "@/hooks/use-crm-data";
+import { mapLeadFromDb } from "@/lib/db-mappers";
+import { TempoIndicador } from "@/components/crm/tempo-indicador";
 
 export const Route = createFileRoute("/_app/crm")({
   component: CrmPage,
@@ -28,7 +31,14 @@ export const Route = createFileRoute("/_app/crm")({
 const colunas: LeadStatus[] = ["bruto", "abordado", "respondeu", "qualificado", "negociacao", "ganho"];
 
 function CrmPage() {
-  const [leads, setLeads] = useState<Lead[]>(seedLeads);
+  useLeadsRealtime();
+  const { data: leadsRaw = [] } = useLeads();
+  const { data: vendedoresData = [] } = useVendedores();
+  const updateStatus = useUpdateLeadStatus();
+
+  const leads = useMemo(() => (leadsRaw as any[]).map(mapLeadFromDb), [leadsRaw]);
+  const vendedores = vendedoresData as any[];
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [vendedorF, setVendedorF] = useState("all");
