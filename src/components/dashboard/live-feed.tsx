@@ -1,24 +1,28 @@
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { feed } from "@/lib/mock-data";
-import { Radar, MessageSquare, ArrowRightLeft, DollarSign, AlertTriangle, MessageCircle } from "lucide-react";
+import { useLiveFeed } from "@/hooks/use-crm-data";
+import { Radar, MessageSquare, ArrowRightLeft, DollarSign, AlertTriangle, MessageCircle, Timer } from "lucide-react";
 
-const iconMap = {
+const iconMap: Record<string, any> = {
   captacao: Radar,
   mensagem_ia: MessageSquare,
-  resposta: MessageCircle,
+  resposta_lead: MessageCircle,
   handoff: ArrowRightLeft,
+  primeira_resposta_vendedor: Timer,
   venda: DollarSign,
   alerta: AlertTriangle,
-} as const;
+  status_change: ArrowRightLeft,
+};
 
 const colorMap: Record<string, string> = {
   captacao: "text-info",
   mensagem_ia: "text-heaven-orange",
-  resposta: "text-success",
+  resposta_lead: "text-success",
   handoff: "text-heaven-orange-deep",
+  primeira_resposta_vendedor: "text-success",
   venda: "text-success",
   alerta: "text-danger",
+  status_change: "text-muted-foreground",
 };
 
 function parseMd(text: string) {
@@ -31,6 +35,8 @@ function parseMd(text: string) {
 }
 
 export function LiveFeed() {
+  const eventos = useLiveFeed();
+
   return (
     <div className="bg-bg-secondary border border-border rounded-lg flex flex-col h-[420px]">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -44,14 +50,16 @@ export function LiveFeed() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
-        {feed.map((e) => {
-          const Icon = iconMap[e.tipo];
+        {eventos.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">Sem eventos ainda</div>
+        ) : eventos.map((e) => {
+          const Icon = iconMap[e.tipo] ?? MessageCircle;
           return (
             <div key={e.id} className="flex gap-3 items-start text-sm">
               <span className="font-mono text-xs text-muted-foreground w-12 shrink-0 pt-0.5">
-                {formatDistanceToNow(e.timestamp, { addSuffix: false, locale: ptBR }).replace("cerca de ", "")}
+                {formatDistanceToNow(new Date(e.created_at), { addSuffix: false, locale: ptBR }).replace("cerca de ", "")}
               </span>
-              <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${colorMap[e.tipo]}`} />
+              <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${colorMap[e.tipo] ?? "text-muted-foreground"}`} />
               <div className="text-muted-foreground leading-snug">{parseMd(e.texto)}</div>
             </div>
           );
