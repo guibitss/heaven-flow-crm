@@ -32,26 +32,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e: string, s: Session | null) => {
       setSession(s);
       if (s?.user) {
         // defer profile fetch
         setTimeout(() => {
           supabase.from("profiles").select("id,nome,email,avatar_url,cargo,role,status,regiao")
             .eq("id", s.user.id).maybeSingle()
-            .then(({ data }) => setProfile(data as Profile | null));
+            .then(({ data }: { data: unknown }) => setProfile(data as Profile | null));
         }, 0);
       } else {
         setProfile(null);
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       setSession(data.session);
       if (data.session?.user) {
         supabase.from("profiles").select("id,nome,email,avatar_url,cargo,role,status,regiao")
           .eq("id", data.session.user.id).maybeSingle()
-          .then(({ data: p }) => { setProfile(p as Profile | null); setLoading(false); });
+          .then(({ data: p }: { data: unknown }) => { setProfile(p as Profile | null); setLoading(false); });
       } else {
         setLoading(false);
       }
