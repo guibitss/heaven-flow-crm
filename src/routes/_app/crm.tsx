@@ -163,12 +163,12 @@ function getColColor(s: LeadStatus): string {
   return map[s];
 }
 
-function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
+function LeadCard({ lead, dragging }: { lead: Lead & { handoff_em?: string; primeira_resposta_vendedor_em?: string; tempo_primeira_resposta_segundos?: number }; dragging?: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id });
-  const vendedor = vendedores.find((v) => v.id === lead.vendedor_id);
 
   const tempBorder = lead.temperatura === "quente" ? "border-l-heaven-orange" : lead.temperatura === "morno" ? "border-l-yellow-500" : "border-l-heaven-gray";
   const scoreCor = lead.score > 80 ? "bg-heaven-orange/20 text-heaven-orange glow-orange" : lead.score > 50 ? "bg-yellow-500/20 text-yellow-500" : "bg-bg-tertiary text-muted-foreground";
+  const showTempo = lead.status === "qualificado" || lead.status === "negociacao";
 
   return (
     <div
@@ -195,12 +195,14 @@ function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
             <span className="font-mono">{lead.decisor.telefone}</span>
           </div>
         </div>
-        <div className="flex items-center justify-between pt-1">
-          <span className={cn("text-[10px] px-2 py-0.5 rounded-sm border", fonteCores[lead.fonte])}>{fonteLabels[lead.fonte]}</span>
-          {vendedor && (
-            <div className="h-6 w-6 rounded-full bg-bg-secondary overflow-hidden border border-border-strong">
-              <img src={vendedor.avatar_url} alt="" title={vendedor.nome} />
-            </div>
+        <div className="flex items-center justify-between pt-1 gap-2">
+          <span className={cn("text-[10px] px-2 py-0.5 rounded-sm border shrink-0", fonteCores[lead.fonte])}>{fonteLabels[lead.fonte]}</span>
+          {showTempo && (
+            <TempoIndicador
+              handoffEm={lead.handoff_em ?? null}
+              primeiraRespostaEm={lead.primeira_resposta_vendedor_em ?? null}
+              tempoSegundos={lead.tempo_primeira_resposta_segundos ?? null}
+            />
           )}
         </div>
       </Link>
