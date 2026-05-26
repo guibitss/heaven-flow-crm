@@ -70,7 +70,8 @@ function CrmPage() {
     const overId = e.over?.id;
     if (!overId) return;
     const novoStatus = String(overId) as LeadStatus;
-    setLeads((ls) => ls.map((l) => l.id === e.active.id ? { ...l, status: novoStatus } : l));
+    const id = String(e.active.id);
+    updateStatus.mutate({ id, status: novoStatus });
     toast.success(`Lead movido para ${statusLabels[novoStatus]}`);
   }
 
