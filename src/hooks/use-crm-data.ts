@@ -129,11 +129,11 @@ export function useLiveFeed() {
   const [eventos, setEventos] = useState<EventoFeed[]>([]);
   useEffect(() => {
     supabase.from("eventos_feed").select("*").order("created_at", { ascending: false }).limit(30)
-      .then(({ data }) => setEventos((data as EventoFeed[]) ?? []));
+      .then(({ data }: { data: unknown }) => setEventos((data as EventoFeed[]) ?? []));
 
     const channel = supabase.channel("eventos-feed")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "eventos_feed" },
-        (payload) => setEventos((prev) => [payload.new as EventoFeed, ...prev].slice(0, 30)))
+        (payload: { new: EventoFeed }) => setEventos((prev) => [payload.new as EventoFeed, ...prev].slice(0, 30)))
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
