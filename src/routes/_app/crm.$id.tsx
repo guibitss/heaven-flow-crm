@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { X, Download, Edit, ChevronDown, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+
 import { useMemo } from "react";
 import { useLeadDetail } from "@/hooks/use-crm-data";
 import { mapLeadFromDb } from "@/lib/db-mappers";
@@ -199,6 +199,3 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
     </div>
   );
 }
-
-// Suppress unused locale warning
-void ptBR;
