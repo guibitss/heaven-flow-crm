@@ -211,6 +211,39 @@ export type Database = {
           },
         ]
       }
+      lead_consentimentos: {
+        Row: {
+          consentimento_em: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          opt_out: boolean
+          opt_out_em: string | null
+          origem: string | null
+          updated_at: string
+        }
+        Insert: {
+          consentimento_em?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          opt_out?: boolean
+          opt_out_em?: string | null
+          origem?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consentimento_em?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          opt_out?: boolean
+          opt_out_em?: string | null
+          origem?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lead_tags: {
         Row: {
           lead_id: string
@@ -350,6 +383,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lgpd_solicitacoes: {
+        Row: {
+          detalhes: string | null
+          id: string
+          lead_id: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          solicitada_em: string
+          status: string
+          tipo: string
+          titular_documento: string | null
+          titular_email: string
+        }
+        Insert: {
+          detalhes?: string | null
+          id?: string
+          lead_id?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          solicitada_em?: string
+          status?: string
+          tipo: string
+          titular_documento?: string | null
+          titular_email: string
+        }
+        Update: {
+          detalhes?: string | null
+          id?: string
+          lead_id?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          solicitada_em?: string
+          status?: string
+          tipo?: string
+          titular_documento?: string | null
+          titular_email?: string
+        }
+        Relationships: []
       }
       mensagens: {
         Row: {
