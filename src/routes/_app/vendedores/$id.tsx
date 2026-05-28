@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { vendedores, leads } from "@/lib/mock-data";
+import { useMemo } from "react";
+import { useVendedor, useLeads } from "@/hooks/use-crm-data";
+import { mapVendedorFromDb, mapLeadFromDb } from "@/lib/db-mappers";
 
 export const Route = createFileRoute("/_app/vendedores/$id")({
   component: VendedorDetail,
@@ -9,14 +11,21 @@ export const Route = createFileRoute("/_app/vendedores/$id")({
 
 function VendedorDetail() {
   const { id } = Route.useParams();
-  const v = vendedores.find((x) => x.id === id);
-  if (!v) return <div>Não encontrado</div>;
+  const { data: raw, isLoading } = useVendedor(id);
+  const { data: leadsRaw = [] } = useLeads();
 
-  const meusLeads = leads.filter((l) => l.vendedor_id === id).slice(0, 10);
-  const data = Array.from({ length: 12 }, (_, i) => ({
-    dia: i + 1,
-    fechamentos: Math.floor(Math.random() * 8000 + 2000),
-  }));
+  const v = raw ? mapVendedorFromDb(raw) : null;
+  const meusLeads = useMemo(
+    () => (leadsRaw as any[]).map(mapLeadFromDb).filter((l) => l.vendedor_id === id).slice(0, 10),
+    [leadsRaw, id],
+  );
+  const data = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ dia: i + 1, fechamentos: 0 })),
+    [],
+  );
+
+  if (isLoading) return <div className="text-sm text-muted-foreground py-12 text-center">Carregando...</div>;
+  if (!v) return <div className="text-sm text-muted-foreground py-12 text-center">Vendedor não encontrado</div>;
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
@@ -24,11 +33,11 @@ function VendedorDetail() {
 
       <div className="flex items-start gap-6 bg-bg-secondary border border-border rounded-lg p-6">
         <div className="h-24 w-24 rounded-full bg-bg-tertiary overflow-hidden border border-border-strong">
-          <img src={v.avatar_url} alt="" />
+          {v.avatar_url && <img src={v.avatar_url} alt="" />}
         </div>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">{v.nome}</h1>
-          <p className="text-muted-foreground">{v.cargo} • {v.regiao}</p>
+          <p className="text-muted-foreground">{v.cargo}{v.regiao ? ` • ${v.regiao}` : ""}</p>
           <div className="flex gap-2 mt-3">
             <span className="text-xs px-2 py-1 rounded bg-success/15 text-success">{v.status === "ativo" ? "Ativo" : "Pausado"}</span>
             <span className="text-xs px-2 py-1 rounded bg-bg-tertiary border border-border font-mono">{v.email}</span>
@@ -38,7 +47,7 @@ function VendedorDetail() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          ["Em aberto", "24"],
+          ["Em aberto", String(meusLeads.length)],
           ["Fech. mês", `R$ ${(v.fechamentos_mes / 1000).toFixed(1)}k`],
           ["Ticket médio", `R$ ${v.ticket_medio}`],
           ["Conversão", `${v.taxa_conversao}%`],
@@ -67,19 +76,23 @@ function VendedorDetail() {
 
       <div className="bg-bg-secondary border border-border rounded-lg p-5">
         <h3 className="text-base font-semibold mb-4">Últimos leads atribuídos</h3>
-        <table className="w-full text-sm">
-          <thead className="text-xs label-xs"><tr><th className="text-left pb-3">Razão Social</th><th className="text-left pb-3">CNPJ</th><th className="text-left pb-3">Status</th><th className="text-right pb-3">Valor</th></tr></thead>
-          <tbody className="divide-y divide-border">
-            {meusLeads.map((l) => (
-              <tr key={l.id}>
-                <td className="py-3">{l.razao_social}</td>
-                <td className="py-3 font-mono text-xs text-muted-foreground">{l.cnpj}</td>
-                <td className="py-3 text-xs"><span className="px-2 py-0.5 rounded bg-bg-tertiary">{l.status}</span></td>
-                <td className="py-3 text-right font-mono">R$ {(l.valor_estimado ?? 0).toLocaleString("pt-BR")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {meusLeads.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">Nenhum lead atribuído</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-xs label-xs"><tr><th className="text-left pb-3">Razão Social</th><th className="text-left pb-3">CNPJ</th><th className="text-left pb-3">Status</th><th className="text-right pb-3">Valor</th></tr></thead>
+            <tbody className="divide-y divide-border">
+              {meusLeads.map((l) => (
+                <tr key={l.id}>
+                  <td className="py-3">{l.razao_social}</td>
+                  <td className="py-3 font-mono text-xs text-muted-foreground">{l.cnpj}</td>
+                  <td className="py-3 text-xs"><span className="px-2 py-0.5 rounded bg-bg-tertiary">{l.status}</span></td>
+                  <td className="py-3 text-right font-mono">R$ {(l.valor_estimado ?? 0).toLocaleString("pt-BR")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="bg-bg-secondary border border-border rounded-lg p-5">
