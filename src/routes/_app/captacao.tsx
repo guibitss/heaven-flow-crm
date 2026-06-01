@@ -77,7 +77,9 @@ function CaptacaoPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Captação automatizada</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configuração de fontes e regras</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure as regras para encontrar empresas automaticamente e transformar oportunidades em leads no CRM.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
