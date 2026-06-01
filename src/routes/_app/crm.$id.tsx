@@ -62,6 +62,14 @@ function LeadDetail() {
               ))}
               <span className="text-xs px-2 py-0.5 rounded bg-bg-tertiary border border-border">{statusLabels[lead.status]}</span>
               <span className="text-xs px-2 py-0.5 rounded bg-bg-tertiary border border-border">{fonteLabels[lead.fonte]}</span>
+              <span className={cn(
+                "text-xs px-2 py-0.5 rounded border font-medium",
+                lead.temperatura === "quente" && "bg-heaven-orange/15 text-heaven-orange border-heaven-orange/40",
+                lead.temperatura === "morno" && "bg-yellow-500/15 text-yellow-500 border-yellow-500/40",
+                lead.temperatura === "frio" && "bg-heaven-gray/15 text-muted-foreground border-heaven-gray/40",
+              )}>
+                {lead.temperatura === "quente" ? "🔥 Quente" : lead.temperatura === "morno" ? "🌡️ Morno" : "❄️ Frio"} · {lead.score}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
