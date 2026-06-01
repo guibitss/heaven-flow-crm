@@ -2,8 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { useMemo } from "react";
-import { useVendedor, useLeads } from "@/hooks/use-crm-data";
+import { useVendedor, useLeads, useRankingVelocidade } from "@/hooks/use-crm-data";
 import { mapVendedorFromDb, mapLeadFromDb } from "@/lib/db-mappers";
+import { formatarTempo, corPorTempo, corTempoHex } from "@/lib/format-tempo";
+import { Timer } from "lucide-react";
 
 export const Route = createFileRoute("/_app/vendedores/$id")({
   component: VendedorDetail,
