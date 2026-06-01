@@ -623,6 +623,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_score_lead: {
+        Args: { _lead: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: number
+      }
       get_dashboard_kpis: { Args: { periodo_dias?: number }; Returns: Json }
       get_funil_data: {
         Args: { periodo_dias?: number }
@@ -658,6 +662,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      reprocessar_scores: { Args: never; Returns: number }
     }
     Enums: {
       evento_tipo:
