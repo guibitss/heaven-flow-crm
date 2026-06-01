@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { TempoIndicador } from "@/components/crm/tempo-indicador";
 
 export const Route = createFileRoute("/_app/crm/$id")({
   component: LeadDetail,
@@ -103,10 +104,16 @@ function LeadDetail() {
 
             <TabsContent value="conversa" className="mt-0 flex flex-col h-full">
               {vendedor && (
-                <div className="text-xs text-muted-foreground bg-bg-tertiary border border-border rounded-md px-3 py-2 mb-4">
-                  Atribuído a <span className="text-heaven-orange font-medium">{vendedor.nome}</span>
+                <div className="text-xs text-muted-foreground bg-bg-tertiary border border-border rounded-md px-3 py-2 mb-4 flex items-center justify-between gap-3 flex-wrap">
+                  <span>Atribuído a <span className="text-heaven-orange font-medium">{vendedor.nome}</span></span>
+                  <TempoIndicador
+                    handoffEm={(raw as any)?.handoff_em ?? null}
+                    primeiraRespostaEm={(raw as any)?.primeira_resposta_vendedor_em ?? null}
+                    tempoSegundos={(raw as any)?.tempo_primeira_resposta_segundos ?? null}
+                  />
                 </div>
               )}
+
               <div className="flex-1 space-y-3 overflow-y-auto pr-2">
                 {mensagens.length === 0 ? (
                   <div className="text-sm text-muted-foreground py-8 text-center">Sem mensagens ainda</div>
