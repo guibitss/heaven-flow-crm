@@ -134,10 +134,13 @@ function CaptacaoPage() {
               </TabsContent>
 
               <TabsContent value="receita" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <Section title="UFs">
+                <p className="text-sm text-muted-foreground">
+                  Filtra empresas por UF, CNAE, capital social e tempo de mercado para encontrar leads com maior potencial.
+                </p>
+                <Section title="UFs" hint="">
                   <ChipInput value={receita.ufs ?? []} onChange={(ufs) => setReceita({ ...receita, ufs })} />
                 </Section>
-                <Section title="CNAEs">
+                <Section title="CNAEs" hint="Segmentos de empresas que serão buscados">
                   <div className="space-y-2">
                     {cnaesList.map((c) => {
                       const checked = (receita.cnaes ?? []).includes(c.c);
@@ -158,7 +161,7 @@ function CaptacaoPage() {
                     })}
                   </div>
                 </Section>
-                <Section title="Capital social mínimo (R$)">
+                <Section title="Capital social mínimo (R$)" hint="">
                   <input
                     type="number"
                     value={receita.capital_minimo ?? 0}
@@ -166,7 +169,7 @@ function CaptacaoPage() {
                     className="w-48 h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm"
                   />
                 </Section>
-                <Section title="Tempo mínimo de mercado (anos)">
+                <Section title="Tempo mínimo de mercado (anos)" hint="">
                   <SliderField value={receita.anos_mercado_min ?? 0} onChange={(anos_mercado_min) => setReceita({ ...receita, anos_mercado_min })} min={0} max={20} suffix=" anos" />
                 </Section>
                 <div className="pt-2">
