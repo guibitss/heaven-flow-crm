@@ -216,6 +216,46 @@ function LeadDetail() {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="lgpd" className="mt-0 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Shield className="h-4 w-4 text-heaven-orange" /> Consentimentos do lead
+              </div>
+              {consentimentos.isLoading ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">Carregando…</div>
+              ) : !consentimentos.data || consentimentos.data.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhum consentimento registrado para este lead.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {consentimentos.data.map((c: any) => (
+                    <div key={c.id} className="bg-bg-tertiary border border-border rounded-md p-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-sm">
+                        <div className="font-medium">
+                          {c.opt_out ? "Opt-out" : "Consentimento ativo"}
+                          {c.origem ? <span className="text-muted-foreground font-normal"> · {c.origem}</span> : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {c.consentimento_em && `consentido em ${format(new Date(c.consentimento_em), "dd/MM/yyyy HH:mm")}`}
+                          {c.opt_out_em && ` · opt-out em ${format(new Date(c.opt_out_em), "dd/MM/yyyy HH:mm")}`}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded border",
+                          c.opt_out
+                            ? "bg-danger/15 text-danger border-danger/40"
+                            : "bg-success/15 text-success border-success/40",
+                        )}
+                      >
+                        {c.opt_out ? "Revogado" : "Ativo"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
           </div>
         </Tabs>
       </div>
