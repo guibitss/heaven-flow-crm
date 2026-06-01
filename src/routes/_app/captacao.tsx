@@ -77,7 +77,9 @@ function CaptacaoPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Captação automatizada</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configuração de fontes e regras</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure as regras para encontrar empresas automaticamente e transformar oportunidades em leads no CRM.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
@@ -109,16 +111,19 @@ function CaptacaoPage() {
               </TabsList>
 
               <TabsContent value="maps" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <Section title="Cidades alvo">
+                <p className="text-sm text-muted-foreground">
+                  Busca empresas por cidade, raio e palavras-chave, como energia solar, construção ou engenharia.
+                </p>
+                <Section title="Cidades alvo" hint="">
                   <ChipInput value={maps.cidades ?? []} onChange={(cidades) => setMaps({ ...maps, cidades })} />
                 </Section>
-                <Section title="Raio (km)">
+                <Section title="Raio (km)" hint="">
                   <SliderField value={maps.raio_km ?? 50} onChange={(raio_km) => setMaps({ ...maps, raio_km })} min={1} max={200} suffix="km" />
                 </Section>
-                <Section title="Palavras-chave">
+                <Section title="Palavras-chave" hint="">
                   <ChipInput value={maps.palavras_chave ?? []} onChange={(palavras_chave) => setMaps({ ...maps, palavras_chave })} />
                 </Section>
-                <Section title="Volume diário máximo">
+                <Section title="Volume diário máximo" hint="Limite de leads criados por dia">
                   <SliderField value={maps.volume_diario_max ?? 150} onChange={(volume_diario_max) => setMaps({ ...maps, volume_diario_max })} min={10} max={500} suffix=" leads/dia" />
                 </Section>
                 <div className="pt-2">
@@ -129,10 +134,13 @@ function CaptacaoPage() {
               </TabsContent>
 
               <TabsContent value="receita" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <Section title="UFs">
+                <p className="text-sm text-muted-foreground">
+                  Filtra empresas por UF, CNAE, capital social e tempo de mercado para encontrar leads com maior potencial.
+                </p>
+                <Section title="UFs" hint="">
                   <ChipInput value={receita.ufs ?? []} onChange={(ufs) => setReceita({ ...receita, ufs })} />
                 </Section>
-                <Section title="CNAEs">
+                <Section title="CNAEs" hint="Segmentos de empresas que serão buscados">
                   <div className="space-y-2">
                     {cnaesList.map((c) => {
                       const checked = (receita.cnaes ?? []).includes(c.c);
@@ -153,7 +161,7 @@ function CaptacaoPage() {
                     })}
                   </div>
                 </Section>
-                <Section title="Capital social mínimo (R$)">
+                <Section title="Capital social mínimo (R$)" hint="">
                   <input
                     type="number"
                     value={receita.capital_minimo ?? 0}
@@ -161,7 +169,7 @@ function CaptacaoPage() {
                     className="w-48 h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm"
                   />
                 </Section>
-                <Section title="Tempo mínimo de mercado (anos)">
+                <Section title="Tempo mínimo de mercado (anos)" hint="">
                   <SliderField value={receita.anos_mercado_min ?? 0} onChange={(anos_mercado_min) => setReceita({ ...receita, anos_mercado_min })} min={0} max={20} suffix=" anos" />
                 </Section>
                 <div className="pt-2">
@@ -172,6 +180,9 @@ function CaptacaoPage() {
               </TabsContent>
 
               <TabsContent value="blacklist" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Empresas cadastradas aqui não serão importadas para o CRM. Use para bloquear concorrentes, clientes atuais ou empresas que não devem entrar no funil.
+                </p>
                 <BlacklistTab />
               </TabsContent>
             </Tabs>
@@ -207,13 +218,13 @@ function SidebarStatus({ ativa }: { ativa: boolean }) {
     mutationFn: async () => {
       const { error } = await supabase.from("eventos_feed").insert({
         tipo: "captacao" as any,
-        texto: "Execução manual iniciada — captação em fila",
+        texto: "Captação manual solicitada",
         metadata: { manual: true, ativa },
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Captação iniciada");
+      toast.success("Captação solicitada. A execução real será conectada na integração.");
       qc.invalidateQueries({ queryKey: ["eventos-captacao"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao executar"),
@@ -235,7 +246,7 @@ function SidebarStatus({ ativa }: { ativa: boolean }) {
             </div>
           </>
         ) : (
-          <div className="text-xs text-muted-foreground">Nenhuma execução registrada</div>
+          <div className="text-xs text-muted-foreground">Nenhuma captação executada ainda.</div>
         )}
       </div>
       <button
@@ -339,10 +350,11 @@ function BlacklistTab() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="label-xs mb-3">{title}</div>
+      <div className="label-xs mb-1">{title}</div>
+      {hint ? <div className="text-xs text-muted-foreground mb-2">{hint}</div> : null}
       {children}
     </div>
   );
