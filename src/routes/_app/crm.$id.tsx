@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { X, Download, Edit, ChevronDown, FileText } from "lucide-react";
+import { X, Download, Edit, ChevronDown, FileText, Shield } from "lucide-react";
 import { format } from "date-fns";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useLeadDetail } from "@/hooks/use-crm-data";
 import { mapLeadFromDb } from "@/lib/db-mappers";
 import { fonteLabels, statusLabels } from "@/lib/mock-data";
