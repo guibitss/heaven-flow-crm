@@ -47,6 +47,7 @@ function CrmPage() {
   const [fonteF, setFonteF] = useState("all");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const isMobile = useIsMobile();
 
   const filtered = useMemo(
     () => leads.filter((l) => {
