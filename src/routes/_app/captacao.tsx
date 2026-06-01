@@ -344,10 +344,11 @@ function BlacklistTab() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="label-xs mb-3">{title}</div>
+      <div className="label-xs mb-1">{title}</div>
+      {hint ? <div className="text-xs text-muted-foreground mb-2">{hint}</div> : null}
       {children}
     </div>
   );
