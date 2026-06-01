@@ -70,6 +70,41 @@ function VendedorDetail() {
       </div>
 
       <div className="bg-bg-secondary border border-border rounded-lg p-5">
+        <div className="flex items-start gap-4">
+          <div
+            className="h-12 w-12 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: velocidade ? `${corTempoHex(corPorTempo(velocidade.tempo_medio_segundos))}20` : "rgba(168,168,168,0.12)" }}
+          >
+            <Timer
+              className="h-6 w-6"
+              style={{ color: velocidade ? corTempoHex(corPorTempo(velocidade.tempo_medio_segundos)) : "#A8A8A8" }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="label-xs">Velocidade de resposta (30d)</div>
+            <div
+              className="font-mono text-3xl font-bold mt-1 leading-none"
+              style={{ color: velocidade ? corTempoHex(corPorTempo(velocidade.tempo_medio_segundos)) : undefined }}
+            >
+              {velocidade ? formatarTempo(velocidade.tempo_medio_segundos) : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {velocidade && (
+                <>
+                  <span>{velocidade.total_respostas} respostas</span>
+                  <span>{velocidade.taxa_excelencia ?? 0}% em &lt;30min</span>
+                  {posicao && <span>#{posicao} no ranking</span>}
+                  {mediaGeral !== null && <span>Média geral: {formatarTempo(mediaGeral)}</span>}
+                </>
+              )}
+              {!velocidade && <span>Sem respostas no período</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div className="bg-bg-secondary border border-border rounded-lg p-5">
         <h3 className="text-base font-semibold mb-4">Performance no mês</h3>
         <div className="h-[260px]">
           <ResponsiveContainer>
