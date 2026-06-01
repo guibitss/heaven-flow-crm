@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DndContext,
   DragOverlay,
@@ -45,6 +47,7 @@ function CrmPage() {
   const [fonteF, setFonteF] = useState("all");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const isMobile = useIsMobile();
 
   const filtered = useMemo(
     () => leads.filter((l) => {
@@ -114,9 +117,11 @@ function CrmPage() {
       </div>
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="flex-1 overflow-x-auto pb-3">
-          <div className="flex gap-4 min-w-max">
-            {colunas.map((col) => <Coluna key={col} status={col} leads={byCol[col] ?? []} />)}
+        <div className={cn("flex-1 pb-3", isMobile ? "overflow-y-auto" : "overflow-x-auto")}>
+          <div className={cn(isMobile ? "flex flex-col gap-3" : "flex gap-4 min-w-max")}>
+            {colunas.map((col) => (
+              <Coluna key={col} status={col} leads={byCol[col] ?? []} mobile={isMobile} />
+            ))}
           </div>
         </div>
         <DragOverlay>
@@ -129,28 +134,46 @@ function CrmPage() {
   );
 }
 
-function Coluna({ status, leads }: { status: LeadStatus; leads: Lead[] }) {
+function Coluna({ status, leads, mobile = false }: { status: LeadStatus; leads: Lead[]; mobile?: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const total = leads.reduce((s, l) => s + (l.valor_estimado ?? 0), 0);
+  const [open, setOpen] = useState(true);
+  const showBody = !mobile || open;
 
   return (
-    <div ref={setNodeRef} className={cn("w-[300px] flex flex-col rounded-lg bg-bg-secondary border", isOver ? "border-heaven-orange" : "border-border")}>
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex flex-col rounded-lg bg-bg-secondary border",
+        mobile ? "w-full" : "w-[300px]",
+        isOver ? "border-heaven-orange" : "border-border",
+      )}
+    >
       <div className="border-t-2 rounded-t-lg" style={{ borderColor: getColColor(status) }} />
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-semibold">{statusLabels[status]}</h3>
-          <span className="text-xs font-mono px-2 py-0.5 rounded bg-bg-tertiary">{leads.length}</span>
+      <button
+        type="button"
+        onClick={() => mobile && setOpen((v) => !v)}
+        className={cn("px-4 py-3 border-b border-border text-left", mobile ? "cursor-pointer" : "cursor-default")}
+      >
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {mobile && (open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />)}
+            <h3 className="text-sm font-semibold truncate">{statusLabels[status]}</h3>
+          </div>
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-bg-tertiary shrink-0">{leads.length}</span>
         </div>
         <div className="text-xs font-mono text-muted-foreground mt-1">R$ {total.toLocaleString("pt-BR")}</div>
-      </div>
-      <div className="flex-1 p-3 space-y-2 min-h-[200px] overflow-y-auto max-h-[calc(100vh-340px)]">
-        {leads.length === 0 ? (
-          <div className="text-center text-xs text-muted-foreground py-8">
-            <div className="opacity-50 mb-2">∅</div>
-            Sem leads nessa etapa ainda
-          </div>
-        ) : leads.map((l) => <LeadCard key={l.id} lead={l} />)}
-      </div>
+      </button>
+      {showBody && (
+        <div className={cn("flex-1 p-3 space-y-2", mobile ? "min-h-[80px]" : "min-h-[200px] overflow-y-auto max-h-[calc(100vh-340px)]")}>
+          {leads.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              <div className="opacity-50 mb-2">∅</div>
+              Sem leads nessa etapa ainda
+            </div>
+          ) : leads.map((l) => <LeadCard key={l.id} lead={l} />)}
+        </div>
+      )}
     </div>
   );
 }
