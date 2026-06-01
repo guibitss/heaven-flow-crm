@@ -116,9 +116,11 @@ function CrmPage() {
       </div>
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="flex-1 overflow-x-auto pb-3">
-          <div className="flex gap-4 min-w-max">
-            {colunas.map((col) => <Coluna key={col} status={col} leads={byCol[col] ?? []} />)}
+        <div className={cn("flex-1 pb-3", isMobile ? "overflow-y-auto" : "overflow-x-auto")}>
+          <div className={cn(isMobile ? "flex flex-col gap-3" : "flex gap-4 min-w-max")}>
+            {colunas.map((col) => (
+              <Coluna key={col} status={col} leads={byCol[col] ?? []} mobile={isMobile} />
+            ))}
           </div>
         </div>
         <DragOverlay>
