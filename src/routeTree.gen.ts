@@ -13,7 +13,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRelatoriosRouteImport } from './routes/_app/relatorios'
+import { Route as AppLgpdRouteImport } from './routes/_app/lgpd'
 import { Route as AppIaRouteImport } from './routes/_app/ia'
+import { Route as AppDocsRouteImport } from './routes/_app/docs'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCrmRouteImport } from './routes/_app/crm'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app/configuracoes'
@@ -41,9 +43,19 @@ const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLgpdRoute = AppLgpdRouteImport.update({
+  id: '/lgpd',
+  path: '/lgpd',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppIaRoute = AppIaRouteImport.update({
   id: '/ia',
   path: '/ia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocsRoute = AppDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -89,7 +101,9 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/crm': typeof AppCrmRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
+  '/docs': typeof AppDocsRoute
   '/ia': typeof AppIaRoute
+  '/lgpd': typeof AppLgpdRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/crm/$id': typeof AppCrmIdRoute
   '/vendedores/$id': typeof AppVendedoresIdRoute
@@ -102,7 +116,9 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/crm': typeof AppCrmRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
+  '/docs': typeof AppDocsRoute
   '/ia': typeof AppIaRoute
+  '/lgpd': typeof AppLgpdRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/crm/$id': typeof AppCrmIdRoute
   '/vendedores/$id': typeof AppVendedoresIdRoute
@@ -117,7 +133,9 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/crm': typeof AppCrmRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/docs': typeof AppDocsRoute
   '/_app/ia': typeof AppIaRoute
+  '/_app/lgpd': typeof AppLgpdRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/crm/$id': typeof AppCrmIdRoute
   '/_app/vendedores/$id': typeof AppVendedoresIdRoute
@@ -132,7 +150,9 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/crm'
     | '/dashboard'
+    | '/docs'
     | '/ia'
+    | '/lgpd'
     | '/relatorios'
     | '/crm/$id'
     | '/vendedores/$id'
@@ -145,7 +165,9 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/crm'
     | '/dashboard'
+    | '/docs'
     | '/ia'
+    | '/lgpd'
     | '/relatorios'
     | '/crm/$id'
     | '/vendedores/$id'
@@ -159,7 +181,9 @@ export interface FileRouteTypes {
     | '/_app/configuracoes'
     | '/_app/crm'
     | '/_app/dashboard'
+    | '/_app/docs'
     | '/_app/ia'
+    | '/_app/lgpd'
     | '/_app/relatorios'
     | '/_app/crm/$id'
     | '/_app/vendedores/$id'
@@ -202,11 +226,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRelatoriosRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/lgpd': {
+      id: '/_app/lgpd'
+      path: '/lgpd'
+      fullPath: '/lgpd'
+      preLoaderRoute: typeof AppLgpdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/ia': {
       id: '/_app/ia'
       path: '/ia'
       fullPath: '/ia'
       preLoaderRoute: typeof AppIaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/docs': {
+      id: '/_app/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof AppDocsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -277,7 +315,9 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDocsRoute: typeof AppDocsRoute
   AppIaRoute: typeof AppIaRoute
+  AppLgpdRoute: typeof AppLgpdRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppVendedoresIdRoute: typeof AppVendedoresIdRoute
   AppVendedoresIndexRoute: typeof AppVendedoresIndexRoute
@@ -288,7 +328,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCrmRoute: AppCrmRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
+  AppDocsRoute: AppDocsRoute,
   AppIaRoute: AppIaRoute,
+  AppLgpdRoute: AppLgpdRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppVendedoresIdRoute: AppVendedoresIdRoute,
   AppVendedoresIndexRoute: AppVendedoresIndexRoute,
@@ -304,3 +346,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
