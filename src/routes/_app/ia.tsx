@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GripVertical, Plus, Trash2, RefreshCw, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app/ia")({
   component: IaPage,
@@ -16,19 +18,120 @@ export const Route = createFileRoute("/_app/ia")({
 
 const variaveis = ["{nome_empresa}", "{cidade}", "{decisor}", "{cnae}"];
 
+type Pergunta = { id: string; pergunta: string; tipo: string; criterio: string };
+type Tentativa = { dias: number; mensagem: string; ativo: boolean };
+
+const defaultPerguntas: Pergunta[] = [
+  { id: "p1", pergunta: "Vocês fazem instalação ou só venda?", tipo: "escolha", criterio: "Faz instalação" },
+  { id: "p2", pergunta: "Quantos sistemas por mês?", tipo: "texto", criterio: "≥ 5 sistemas" },
+  { id: "p3", pergunta: "Já tem fornecedor de estrutura?", tipo: "sim_nao", criterio: "Aberto a trocar" },
+];
+
+const defaultReativacao: Tentativa[] = [
+  { dias: 3, mensagem: "Olá! Notei que ainda não conseguimos conversar. Posso te ajudar com algo sobre estruturas para painéis?", ativo: true },
+  { dias: 6, mensagem: "Continuamos à disposição — posso enviar um material rápido sobre nossos diferenciais?", ativo: false },
+  { dias: 9, mensagem: "Última tentativa por aqui. Se preferir, te mando uma proposta direto no WhatsApp.", ativo: false },
+];
+
 function IaPage() {
-  const [msg, setMsg] = useState("Olá {decisor}! Aqui é a Heaven, vimos que a {nome_empresa} atua com energia solar em {cidade}. Podemos ajudar com estruturas e suporte de painéis?");
-  const [perguntas, setPerguntas] = useState([
-    { id: "p1", pergunta: "Vocês fazem instalação ou só venda?", tipo: "escolha", criterio: "Faz instalação" },
-    { id: "p2", pergunta: "Quantos sistemas por mês?", tipo: "texto", criterio: "≥ 5 sistemas" },
-    { id: "p3", pergunta: "Já tem fornecedor de estrutura?", tipo: "sim_nao", criterio: "Aberto a trocar" },
-  ]);
+  const qc = useQueryClient();
+
+  const cfg = useQuery({
+    queryKey: ["configuracoes_ia"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("configuracoes_ia").select("*").eq("id", 1).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [msg, setMsg] = useState("");
+  const [perguntas, setPerguntas] = useState<Pergunta[]>(defaultPerguntas);
+  const [regraHandoff, setRegraHandoff] = useState<string>("round");
+  const [canais, setCanais] = useState<string[]>(["WhatsApp pessoal", "Email", "Push no CRM"]);
+  const [hIni, setHIni] = useState(8);
+  const [hFim, setHFim] = useState(18);
+  const [dias, setDias] = useState<string[]>(["seg", "ter", "qua", "qui", "sex"]);
+  const [reativacao, setReativacao] = useState<Tentativa[]>(defaultReativacao);
+
+  useEffect(() => {
+    if (!cfg.data) return;
+    const d: any = cfg.data;
+    setMsg(d.mensagem_abertura ?? "Olá {decisor}! Aqui é a Heaven, vimos que a {nome_empresa} atua com energia solar em {cidade}. Podemos ajudar com estruturas e suporte de painéis?");
+    if (Array.isArray(d.perguntas_qualificacao) && d.perguntas_qualificacao.length) setPerguntas(d.perguntas_qualificacao);
+    const rh = d.regras_handoff ?? {};
+    setRegraHandoff(rh.regra ?? "round");
+    if (Array.isArray(rh.canais)) setCanais(rh.canais);
+    if (d.horario_inicio) setHIni(parseInt(String(d.horario_inicio).slice(0, 2)));
+    if (d.horario_fim) setHFim(parseInt(String(d.horario_fim).slice(0, 2)));
+    if (Array.isArray(d.dias_semana)) setDias(d.dias_semana);
+    if (Array.isArray(d.reativacao) && d.reativacao.length) setReativacao(d.reativacao);
+  }, [cfg.data]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        id: 1,
+        mensagem_abertura: msg,
+        perguntas_qualificacao: perguntas,
+        regras_handoff: { regra: regraHandoff, canais },
+        horario_inicio: `${String(hIni).padStart(2, "0")}:00:00`,
+        horario_fim: `${String(hFim).padStart(2, "0")}:00:00`,
+        dias_semana: dias,
+        reativacao,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from("configuracoes_ia").upsert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["configuracoes_ia"] });
+      toast.success("Configurações da IA salvas");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar"),
+  });
+
+  const reprocMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("reprocessar_scores");
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      toast.success(`${n ?? 0} leads reprocessados`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao reprocessar"),
+  });
+
+  const toggleCanal = (c: string) =>
+    setCanais((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Agente IA</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configure abordagem, qualificação e handoff</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Agente IA</h1>
+          <p className="text-sm text-muted-foreground mt-1">Configure abordagem, qualificação e handoff</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => reprocMut.mutate()}
+            disabled={reprocMut.isPending}
+            className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm flex items-center gap-2"
+          >
+            {reprocMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Reprocessar scores
+          </button>
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending || cfg.isLoading}
+            className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-2"
+          >
+            {saveMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Salvar configurações
+          </button>
+        </div>
       </div>
 
       <Tabs defaultValue="abertura">
@@ -50,10 +153,6 @@ function IaPage() {
                 ))}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => toast.success("Mensagem salva")} className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium">Salvar</button>
-              <button className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm">Iniciar A/B test</button>
-            </div>
           </div>
           <div className="bg-bg-secondary border border-border rounded-lg p-5">
             <div className="label-xs mb-3">Preview</div>
@@ -66,11 +165,15 @@ function IaPage() {
 
         <TabsContent value="perguntas" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
           <div className="space-y-2">
-            {perguntas.map((p) => (
+            {perguntas.map((p, idx) => (
               <div key={p.id} className="flex items-center gap-3 p-3 bg-bg-tertiary rounded-md border border-border">
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                <input defaultValue={p.pergunta} className="flex-1 bg-transparent text-sm outline-none" />
-                <Select defaultValue={p.tipo}>
+                <input
+                  value={p.pergunta}
+                  onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, pergunta: e.target.value } : q)))}
+                  className="flex-1 bg-transparent text-sm outline-none"
+                />
+                <Select value={p.tipo} onValueChange={(v) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, tipo: v } : q)))}>
                   <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="texto">Texto</SelectItem>
@@ -78,7 +181,11 @@ function IaPage() {
                     <SelectItem value="escolha">Escolha</SelectItem>
                   </SelectContent>
                 </Select>
-                <input defaultValue={p.criterio} className="w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs" />
+                <input
+                  value={p.criterio}
+                  onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, criterio: e.target.value } : q)))}
+                  className="w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs"
+                />
                 <button onClick={() => setPerguntas((x) => x.filter((q) => q.id !== p.id))} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
@@ -91,7 +198,7 @@ function IaPage() {
         <TabsContent value="handoff" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-6">
           <div>
             <div className="label-xs mb-3">Regra de distribuição</div>
-            <RadioGroup defaultValue="round">
+            <RadioGroup value={regraHandoff} onValueChange={setRegraHandoff}>
               {[["round", "Round-robin"], ["regiao", "Por região"], ["especifico", "Vendedor específico"]].map(([v, l]) => (
                 <div key={v} className="flex items-center gap-2"><RadioGroupItem value={v} id={v} /><Label htmlFor={v}>{l}</Label></div>
               ))}
@@ -102,24 +209,24 @@ function IaPage() {
             <div className="flex flex-wrap gap-2">
               {["WhatsApp pessoal", "Email", "Push no CRM"].map((c) => (
                 <label key={c} className="px-3 py-1.5 rounded border border-heaven-orange/40 bg-heaven-orange/10 text-heaven-orange text-xs flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" defaultChecked className="accent-heaven-orange" /> {c}
+                  <input type="checkbox" checked={canais.includes(c)} onChange={() => toggleCanal(c)} className="accent-heaven-orange" /> {c}
                 </label>
               ))}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-6 max-w-2xl">
             <div>
-              <div className="label-xs mb-3">Início do expediente</div>
-              <Slider defaultValue={[8]} min={0} max={23} />
+              <div className="label-xs mb-3">Início do expediente — {hIni}h</div>
+              <Slider value={[hIni]} onValueChange={(v) => setHIni(v[0])} min={0} max={23} />
             </div>
             <div>
-              <div className="label-xs mb-3">Fim do expediente</div>
-              <Slider defaultValue={[18]} min={0} max={23} />
+              <div className="label-xs mb-3">Fim do expediente — {hFim}h</div>
+              <Slider value={[hFim]} onValueChange={(v) => setHFim(v[0])} min={0} max={23} />
             </div>
           </div>
           <div>
             <div className="label-xs mb-3">Dias da semana</div>
-            <ToggleGroup type="multiple" defaultValue={["seg","ter","qua","qui","sex"]}>
+            <ToggleGroup type="multiple" value={dias} onValueChange={(v) => v.length && setDias(v)}>
               {["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((d) => (
                 <ToggleGroupItem key={d} value={d.toLowerCase().slice(0,3)}>{d}</ToggleGroupItem>
               ))}
@@ -128,18 +235,27 @@ function IaPage() {
         </TabsContent>
 
         <TabsContent value="reativacao" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-4">
-          {[1,2,3].map((n) => (
+          {reativacao.map((t, n) => (
             <div key={n} className="border border-border rounded-md p-4 space-y-3">
               <div className="flex justify-between items-center">
-                <div className="font-semibold text-sm">Tentativa {n}</div>
-                <Switch defaultChecked={n === 1} />
+                <div className="font-semibold text-sm">Tentativa {n + 1}</div>
+                <Switch checked={t.ativo} onCheckedChange={(v) => setReativacao((xs) => xs.map((x, i) => i === n ? { ...x, ativo: v } : x))} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs">Após</span>
-                <input type="number" defaultValue={n * 3} className="w-20 h-9 px-2 rounded bg-bg-tertiary border border-border text-sm font-mono" />
+                <input
+                  type="number"
+                  value={t.dias}
+                  onChange={(e) => setReativacao((xs) => xs.map((x, i) => i === n ? { ...x, dias: Number(e.target.value) } : x))}
+                  className="w-20 h-9 px-2 rounded bg-bg-tertiary border border-border text-sm font-mono"
+                />
                 <span className="text-xs">dias</span>
               </div>
-              <textarea defaultValue={`Olá! Notei que ainda não conseguimos conversar. Posso te ajudar com algo sobre estruturas para painéis?`} className="w-full h-20 p-3 rounded bg-bg-tertiary border border-border text-sm resize-none" />
+              <textarea
+                value={t.mensagem}
+                onChange={(e) => setReativacao((xs) => xs.map((x, i) => i === n ? { ...x, mensagem: e.target.value } : x))}
+                className="w-full h-20 p-3 rounded bg-bg-tertiary border border-border text-sm resize-none"
+              />
             </div>
           ))}
         </TabsContent>
