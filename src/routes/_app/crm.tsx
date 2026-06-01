@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DndContext,
   DragOverlay,
