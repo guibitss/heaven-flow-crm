@@ -103,6 +103,7 @@ function LeadDetail() {
             <TabsTrigger value="notas">Notas</TabsTrigger>
             <TabsTrigger value="anexos">Anexos</TabsTrigger>
             <TabsTrigger value="bling">Bling</TabsTrigger>
+            <TabsTrigger value="lgpd">LGPD</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
