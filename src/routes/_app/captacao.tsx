@@ -180,6 +180,9 @@ function CaptacaoPage() {
               </TabsContent>
 
               <TabsContent value="blacklist" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Empresas cadastradas aqui não serão importadas para o CRM. Use para bloquear concorrentes, clientes atuais ou empresas que não devem entrar no funil.
+                </p>
                 <BlacklistTab />
               </TabsContent>
             </Tabs>
