@@ -15,8 +15,16 @@ function VendedorDetail() {
   const { id } = Route.useParams();
   const { data: raw, isLoading } = useVendedor(id);
   const { data: leadsRaw = [] } = useLeads();
+  const { data: ranking = [] } = useRankingVelocidade(30);
 
   const v = raw ? mapVendedorFromDb(raw) : null;
+  const velocidade = (ranking as any[]).find((r) => r.vendedor_id === id) ?? null;
+  const mediaGeral = (ranking as any[]).length
+    ? Math.round((ranking as any[]).reduce((s, r) => s + (r.tempo_medio_segundos ?? 0), 0) / (ranking as any[]).length)
+    : null;
+  const posicao = velocidade
+    ? [...(ranking as any[])].sort((a, b) => a.tempo_medio_segundos - b.tempo_medio_segundos).findIndex((r) => r.vendedor_id === id) + 1
+    : null;
   const meusLeads = useMemo(
     () => (leadsRaw as any[]).map(mapLeadFromDb).filter((l) => l.vendedor_id === id).slice(0, 10),
     [leadsRaw, id],
