@@ -218,13 +218,13 @@ function SidebarStatus({ ativa }: { ativa: boolean }) {
     mutationFn: async () => {
       const { error } = await supabase.from("eventos_feed").insert({
         tipo: "captacao" as any,
-        texto: "Execução manual iniciada — captação em fila",
+        texto: "Captação manual solicitada",
         metadata: { manual: true, ativa },
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Captação iniciada");
+      toast.success("Captação solicitada. A execução real será conectada na integração.");
       qc.invalidateQueries({ queryKey: ["eventos-captacao"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao executar"),
@@ -246,7 +246,7 @@ function SidebarStatus({ ativa }: { ativa: boolean }) {
             </div>
           </>
         ) : (
-          <div className="text-xs text-muted-foreground">Nenhuma execução registrada</div>
+          <div className="text-xs text-muted-foreground">Nenhuma captação executada ainda.</div>
         )}
       </div>
       <button
