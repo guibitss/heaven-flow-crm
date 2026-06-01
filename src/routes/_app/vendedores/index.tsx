@@ -1,7 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useVendedores } from "@/hooks/use-crm-data";
 import { mapVendedorFromDb } from "@/lib/db-mappers";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_app/vendedores/")({
   component: VendedoresPage,
@@ -10,6 +25,43 @@ export const Route = createFileRoute("/_app/vendedores/")({
 function VendedoresPage() {
   const { data: raw = [], isLoading, error } = useVendedores();
   const vendedores = (raw as any[]).map(mapVendedorFromDb);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ nome: "", email: "", telefone: "", ativo: true });
+  const qc = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!form.nome.trim() || !form.email.trim()) {
+        throw new Error("Nome e e-mail são obrigatórios");
+      }
+      const payload: any = {
+        id: crypto.randomUUID(),
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        telefone: form.telefone.trim() || null,
+        role: "vendedor",
+        status: form.ativo ? "ativo" : "inativo",
+      };
+      const { error } = await supabase.from("profiles").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Vendedor adicionado");
+      qc.invalidateQueries({ queryKey: ["vendedores"] });
+      setOpen(false);
+      setForm({ nome: "", email: "", telefone: "", ativo: true });
+    },
+    onError: (e: any) => {
+      const msg = e?.message ?? "Erro ao adicionar vendedor";
+      if (/row-level security|permission|denied/i.test(msg)) {
+        toast.error(
+          "Sem permissão para criar vendedor. Apenas admin pode cadastrar — ou o vendedor deve criar conta via login."
+        );
+      } else {
+        toast.error(msg);
+      }
+    },
+  });
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -18,7 +70,11 @@ function VendedoresPage() {
           <h1 className="text-3xl font-bold tracking-tight">Vendedores</h1>
           <p className="text-sm text-muted-foreground mt-1">{vendedores.length} ativos na equipe</p>
         </div>
-        <button className="h-10 px-4 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground font-medium text-sm flex items-center gap-2 glow-orange">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="h-10 px-4 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground font-medium text-sm flex items-center gap-2 glow-orange"
+        >
           <Plus className="h-4 w-4" /> Adicionar vendedor
         </button>
       </div>
@@ -71,6 +127,57 @@ function VendedoresPage() {
           })}
         </div>
       )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar vendedor</DialogTitle>
+            <DialogDescription>
+              Cadastre um novo vendedor na equipe. O acesso definitivo é criado quando ele faz login pela primeira vez.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              createMutation.mutate();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input id="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="telefone">Telefone</Label>
+              <Input id="telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="ativo">Status ativo</Label>
+              <Switch id="ativo" checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-10 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="h-10 px-4 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground font-medium text-sm disabled:opacity-50"
+              >
+                {createMutation.isPending ? "Salvando..." : "Salvar"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
