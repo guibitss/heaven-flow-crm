@@ -11,6 +11,8 @@ import {
   Bell,
   Menu,
   X,
+  Shield,
+  BookOpen,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,8 @@ const navItems = [
   { to: "/captacao", label: "Captação", icon: Radar },
   { to: "/ia", label: "Agente IA", icon: Bot },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { to: "/lgpd", label: "LGPD", icon: Shield },
+  { to: "/docs", label: "Documentação", icon: BookOpen },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 

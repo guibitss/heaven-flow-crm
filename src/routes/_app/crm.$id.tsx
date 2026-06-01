@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { X, Download, Edit, ChevronDown, FileText } from "lucide-react";
+import { X, Download, Edit, ChevronDown, FileText, Shield } from "lucide-react";
 import { format } from "date-fns";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useLeadDetail } from "@/hooks/use-crm-data";
 import { mapLeadFromDb } from "@/lib/db-mappers";
 import { fonteLabels, statusLabels } from "@/lib/mock-data";
@@ -30,6 +32,20 @@ function LeadDetail() {
   const notas = ((raw as any)?.notas ?? []) as any[];
   const anexos = ((raw as any)?.anexos ?? []) as any[];
   const tags = (((raw as any)?.lead_tags ?? []) as any[]).map((lt) => lt.tag).filter(Boolean);
+
+  const consentimentos = useQuery({
+    queryKey: ["lead_consentimentos", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lead_consentimentos")
+        .select("*")
+        .eq("lead_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
 
   if (isLoading) {
     return (
@@ -87,6 +103,7 @@ function LeadDetail() {
             <TabsTrigger value="notas">Notas</TabsTrigger>
             <TabsTrigger value="anexos">Anexos</TabsTrigger>
             <TabsTrigger value="bling">Bling</TabsTrigger>
+            <TabsTrigger value="lgpd">LGPD</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -196,6 +213,46 @@ function LeadDetail() {
               ) : (
                 <div className="text-center py-16 text-muted-foreground text-sm">
                   Este lead ainda não é cliente no Bling.
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="lgpd" className="mt-0 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Shield className="h-4 w-4 text-heaven-orange" /> Consentimentos do lead
+              </div>
+              {consentimentos.isLoading ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">Carregando…</div>
+              ) : !consentimentos.data || consentimentos.data.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhum consentimento registrado para este lead.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {consentimentos.data.map((c: any) => (
+                    <div key={c.id} className="bg-bg-tertiary border border-border rounded-md p-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-sm">
+                        <div className="font-medium">
+                          {c.opt_out ? "Opt-out" : "Consentimento ativo"}
+                          {c.origem ? <span className="text-muted-foreground font-normal"> · {c.origem}</span> : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {c.consentimento_em && `consentido em ${format(new Date(c.consentimento_em), "dd/MM/yyyy HH:mm")}`}
+                          {c.opt_out_em && ` · opt-out em ${format(new Date(c.opt_out_em), "dd/MM/yyyy HH:mm")}`}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded border",
+                          c.opt_out
+                            ? "bg-danger/15 text-danger border-danger/40"
+                            : "bg-success/15 text-success border-success/40",
+                        )}
+                      >
+                        {c.opt_out ? "Revogado" : "Ativo"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </TabsContent>
