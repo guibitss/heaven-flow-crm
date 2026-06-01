@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { TempoIndicador } from "@/components/crm/tempo-indicador";
 
 export const Route = createFileRoute("/_app/crm/$id")({
   component: LeadDetail,
