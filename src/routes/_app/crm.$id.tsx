@@ -33,6 +33,20 @@ function LeadDetail() {
   const anexos = ((raw as any)?.anexos ?? []) as any[];
   const tags = (((raw as any)?.lead_tags ?? []) as any[]).map((lt) => lt.tag).filter(Boolean);
 
+  const consentimentos = useQuery({
+    queryKey: ["lead_consentimentos", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lead_consentimentos")
+        .select("*")
+        .eq("lead_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={close}>
