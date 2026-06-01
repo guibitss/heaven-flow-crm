@@ -111,16 +111,19 @@ function CaptacaoPage() {
               </TabsList>
 
               <TabsContent value="maps" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <Section title="Cidades alvo">
+                <p className="text-sm text-muted-foreground">
+                  Busca empresas por cidade, raio e palavras-chave, como energia solar, construção ou engenharia.
+                </p>
+                <Section title="Cidades alvo" hint="">
                   <ChipInput value={maps.cidades ?? []} onChange={(cidades) => setMaps({ ...maps, cidades })} />
                 </Section>
-                <Section title="Raio (km)">
+                <Section title="Raio (km)" hint="">
                   <SliderField value={maps.raio_km ?? 50} onChange={(raio_km) => setMaps({ ...maps, raio_km })} min={1} max={200} suffix="km" />
                 </Section>
-                <Section title="Palavras-chave">
+                <Section title="Palavras-chave" hint="">
                   <ChipInput value={maps.palavras_chave ?? []} onChange={(palavras_chave) => setMaps({ ...maps, palavras_chave })} />
                 </Section>
-                <Section title="Volume diário máximo">
+                <Section title="Volume diário máximo" hint="Limite de leads criados por dia">
                   <SliderField value={maps.volume_diario_max ?? 150} onChange={(volume_diario_max) => setMaps({ ...maps, volume_diario_max })} min={10} max={500} suffix=" leads/dia" />
                 </Section>
                 <div className="pt-2">
