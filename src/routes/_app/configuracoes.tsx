@@ -153,6 +153,52 @@ function ConfigPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Adicionar usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nome">Nome</Label>
+              <input id="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className="mt-1 w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Perfil</Label>
+                <Select value={form.perfil} onValueChange={(v) => setForm({ ...form, perfil: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Gestor">Gestor</SelectItem>
+                    <SelectItem value="Vendedor">Vendedor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Cadastro real com acesso será conectado na implantação.</p>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setOpen(false)} className="h-9 px-3 rounded-md bg-bg-tertiary text-sm">Cancelar</button>
+            <button onClick={handleSave} className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium">Salvar</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
