@@ -56,11 +56,11 @@ function ConfigPage() {
       </div>
 
       <Tabs defaultValue="usuarios">
-        <TabsList>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="integracoes">Integrações</TabsTrigger>
-          <TabsTrigger value="notif">Notificações</TabsTrigger>
-          <TabsTrigger value="empresa">Empresa</TabsTrigger>
+        <TabsList className="grid grid-cols-2 sm:inline-flex h-auto sm:h-9 w-full sm:w-auto gap-2 sm:gap-0">
+          <TabsTrigger value="usuarios" className="whitespace-normal sm:whitespace-nowrap w-full">Usuários</TabsTrigger>
+          <TabsTrigger value="integracoes" className="whitespace-normal sm:whitespace-nowrap w-full">Integrações</TabsTrigger>
+          <TabsTrigger value="notif" className="whitespace-normal sm:whitespace-nowrap w-full">Notificações</TabsTrigger>
+          <TabsTrigger value="empresa" className="whitespace-normal sm:whitespace-nowrap w-full">Empresa</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 w-full max-w-full overflow-hidden">
