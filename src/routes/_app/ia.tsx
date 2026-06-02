@@ -163,18 +163,20 @@ function IaPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="perguntas" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
+        <TabsContent value="perguntas" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5">
           <div className="space-y-2">
             {perguntas.map((p, idx) => (
-              <div key={p.id} className="flex items-center gap-3 p-3 bg-bg-tertiary rounded-md border border-border">
-                <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                <input
-                  value={p.pergunta}
-                  onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, pergunta: e.target.value } : q)))}
-                  className="flex-1 bg-transparent text-sm outline-none"
-                />
+              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 bg-bg-tertiary rounded-md border border-border">
+                <div className="flex items-center gap-2 w-full sm:flex-1 min-w-0">
+                  <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab shrink-0" />
+                  <input
+                    value={p.pergunta}
+                    onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, pergunta: e.target.value } : q)))}
+                    className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+                  />
+                </div>
                 <Select value={p.tipo} onValueChange={(v) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, tipo: v } : q)))}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="texto">Texto</SelectItem>
                     <SelectItem value="sim_nao">Sim/Não</SelectItem>
@@ -184,9 +186,9 @@ function IaPage() {
                 <input
                   value={p.criterio}
                   onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, criterio: e.target.value } : q)))}
-                  className="w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs"
+                  className="w-full sm:w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs"
                 />
-                <button onClick={() => setPerguntas((x) => x.filter((q) => q.id !== p.id))} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                <button onClick={() => setPerguntas((x) => x.filter((q) => q.id !== p.id))} className="text-muted-foreground hover:text-danger self-end sm:self-auto shrink-0"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
           </div>
@@ -195,7 +197,7 @@ function IaPage() {
           </button>
         </TabsContent>
 
-        <TabsContent value="handoff" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-6">
+        <TabsContent value="handoff" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5 space-y-6">
           <div>
             <div className="label-xs mb-3">Regra de distribuição</div>
             <RadioGroup value={regraHandoff} onValueChange={setRegraHandoff}>
