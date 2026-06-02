@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/configuracoes")({
   component: ConfigPage,
 });
 
-const users = [
+type User = { nome: string; email: string; perfil: string; status: string };
+
+const initialUsers: User[] = [
   { nome: "Admin Heaven", email: "admin@heaven.com.br", perfil: "Admin", status: "Ativo" },
   { nome: "Carlos Silva", email: "carlos@heaven.com.br", perfil: "Vendedor", status: "Ativo" },
   { nome: "José Almeida", email: "jose@heaven.com.br", perfil: "Vendedor", status: "Ativo" },
