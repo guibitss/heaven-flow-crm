@@ -108,17 +108,17 @@ function IaPage() {
     setCanais((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agente IA</h1>
+    <div className="space-y-6 max-w-[1400px] mx-auto w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">Agente IA</h1>
           <p className="text-sm text-muted-foreground mt-1">Configure abordagem, qualificação e handoff</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={() => reprocMut.mutate()}
             disabled={reprocMut.isPending}
-            className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm flex items-center gap-2"
+            className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             {reprocMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Reprocessar scores
@@ -126,7 +126,7 @@ function IaPage() {
           <button
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || cfg.isLoading}
-            className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-2"
+            className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             {saveMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar configurações
@@ -134,8 +134,8 @@ function IaPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="abertura">
-        <TabsList>
+      <Tabs defaultValue="abertura" className="w-full max-w-full">
+        <TabsList className="grid grid-cols-2 sm:inline-flex sm:h-9 h-auto w-full sm:w-auto gap-1 sm:gap-0">
           <TabsTrigger value="abertura">Mensagem de abertura</TabsTrigger>
           <TabsTrigger value="perguntas">Qualificação</TabsTrigger>
           <TabsTrigger value="handoff">Handoff</TabsTrigger>
