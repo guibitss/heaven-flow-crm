@@ -94,7 +94,7 @@ function LgpdPage() {
         {isLoading ? (
           <div className="text-sm text-muted-foreground py-8 text-center">Carregando…</div>
         ) : (
-          <>
+          <div className="contents">
             {isEmpty && (
               <p className="text-xs text-muted-foreground mb-3">
                 Dados demonstrativos — serão substituídos por solicitações reais.
@@ -135,7 +135,7 @@ function LgpdPage() {
                 ))}
               </tbody>
             </table>
-          </>
+          </div>
         )}
       </div>
     </div>
