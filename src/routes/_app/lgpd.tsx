@@ -89,18 +89,58 @@ function LgpdPage() {
         </div>
       </div>
 
-      <div className="bg-bg-secondary border border-border rounded-lg p-5">
+      <div className="bg-bg-secondary border border-border rounded-lg p-3 sm:p-5 w-full max-w-full overflow-hidden">
         <h3 className="text-base font-semibold mb-4">Solicitações</h3>
         {isLoading ? (
           <div className="text-sm text-muted-foreground py-8 text-center">Carregando…</div>
         ) : (
-          <div className="contents">
+          <div className="w-full max-w-full overflow-hidden">
             {isEmpty && (
               <p className="text-xs text-muted-foreground mb-3">
                 Dados demonstrativos — serão substituídos por solicitações reais.
               </p>
             )}
-            <table className="w-full text-sm">
+
+            {/* Mobile cards */}
+            <div className="block md:hidden space-y-3 w-full max-w-full">
+              {rows.map((s: any) => (
+                <div
+                  key={s.id}
+                  className="w-full max-w-full border border-border rounded-lg bg-bg-primary p-4 space-y-2 overflow-hidden"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(s.solicitada_em), "dd/MM/yyyy HH:mm")}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs px-2 py-0.5 rounded border shrink-0",
+                        statusStyles[s.status] ?? "bg-bg-tertiary border-border",
+                      )}
+                    >
+                      {statusLabels[s.status] ?? s.status}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Tipo: </span>
+                      <span className="break-words">{tipoLabels[s.tipo] ?? s.tipo}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Titular: </span>
+                      <span className="break-words">{s.titular_email}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Documento: </span>
+                      <span className="break-words">{s.titular_documento ?? "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden md:table w-full text-sm">
               <thead className="text-xs label-xs">
                 <tr>
                   <th className="text-left pb-3">Data</th>
