@@ -93,7 +93,7 @@ function LgpdPage() {
         <h3 className="text-base font-semibold mb-4">Solicitações</h3>
         {isLoading ? (
           <div className="text-sm text-muted-foreground py-8 text-center">Carregando…</div>
-        : (
+        ) : (
           <>
             {isEmpty && (
               <p className="text-xs text-muted-foreground mb-3">
