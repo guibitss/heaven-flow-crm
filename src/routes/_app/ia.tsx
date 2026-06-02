@@ -216,7 +216,7 @@ function IaPage() {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-6 max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
             <div>
               <div className="label-xs mb-3">Início do expediente — {hIni}h</div>
               <Slider value={[hIni]} onValueChange={(v) => setHIni(v[0])} min={0} max={23} />
@@ -228,7 +228,7 @@ function IaPage() {
           </div>
           <div>
             <div className="label-xs mb-3">Dias da semana</div>
-            <ToggleGroup type="multiple" value={dias} onValueChange={(v) => v.length && setDias(v)}>
+            <ToggleGroup type="multiple" value={dias} onValueChange={(v) => v.length && setDias(v)} className="flex-wrap justify-start">
               {["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((d) => (
                 <ToggleGroupItem key={d} value={d.toLowerCase().slice(0,3)}>{d}</ToggleGroupItem>
               ))}
@@ -236,7 +236,7 @@ function IaPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reativacao" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-4">
+        <TabsContent value="reativacao" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5 space-y-4">
           {reativacao.map((t, n) => (
             <div key={n} className="border border-border rounded-md p-4 space-y-3">
               <div className="flex justify-between items-center">
