@@ -31,12 +31,12 @@ function DocsPage() {
       </div>
 
       <Tabs defaultValue="arquitetura" className="w-full">
-        <div className="w-full overflow-x-auto -mx-1 px-1">
-          <TabsList className="w-max sm:w-auto flex sm:inline-flex">
-            <TabsTrigger value="arquitetura">Arquitetura</TabsTrigger>
-            <TabsTrigger value="gestor">Manual do gestor</TabsTrigger>
-            <TabsTrigger value="vendedor">Manual do vendedor</TabsTrigger>
-            <TabsTrigger value="faq">FAQ</TabsTrigger>
+        <div className="w-full max-w-full overflow-hidden">
+          <TabsList className="grid grid-cols-2 sm:inline-flex h-auto sm:h-9 w-full sm:w-auto">
+            <TabsTrigger value="arquitetura" className="whitespace-normal sm:whitespace-nowrap">Arquitetura</TabsTrigger>
+            <TabsTrigger value="gestor" className="whitespace-normal sm:whitespace-nowrap">Manual do gestor</TabsTrigger>
+            <TabsTrigger value="vendedor" className="whitespace-normal sm:whitespace-nowrap">Manual do vendedor</TabsTrigger>
+            <TabsTrigger value="faq" className="whitespace-normal sm:whitespace-nowrap">FAQ</TabsTrigger>
           </TabsList>
         </div>
 
