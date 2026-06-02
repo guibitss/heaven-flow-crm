@@ -108,17 +108,17 @@ function IaPage() {
     setCanais((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agente IA</h1>
+    <div className="space-y-6 max-w-[1400px] mx-auto w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">Agente IA</h1>
           <p className="text-sm text-muted-foreground mt-1">Configure abordagem, qualificação e handoff</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={() => reprocMut.mutate()}
             disabled={reprocMut.isPending}
-            className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm flex items-center gap-2"
+            className="h-9 px-4 rounded-md border border-border hover:bg-bg-tertiary text-sm flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             {reprocMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Reprocessar scores
@@ -126,7 +126,7 @@ function IaPage() {
           <button
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || cfg.isLoading}
-            className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-2"
+            className="h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             {saveMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar configurações
@@ -134,8 +134,8 @@ function IaPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="abertura">
-        <TabsList>
+      <Tabs defaultValue="abertura" className="w-full max-w-full">
+        <TabsList className="grid grid-cols-2 sm:inline-flex sm:h-9 h-auto w-full sm:w-auto gap-1 sm:gap-0">
           <TabsTrigger value="abertura">Mensagem de abertura</TabsTrigger>
           <TabsTrigger value="perguntas">Qualificação</TabsTrigger>
           <TabsTrigger value="handoff">Handoff</TabsTrigger>
@@ -163,18 +163,20 @@ function IaPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="perguntas" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
+        <TabsContent value="perguntas" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5">
           <div className="space-y-2">
             {perguntas.map((p, idx) => (
-              <div key={p.id} className="flex items-center gap-3 p-3 bg-bg-tertiary rounded-md border border-border">
-                <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                <input
-                  value={p.pergunta}
-                  onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, pergunta: e.target.value } : q)))}
-                  className="flex-1 bg-transparent text-sm outline-none"
-                />
+              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 bg-bg-tertiary rounded-md border border-border">
+                <div className="flex items-center gap-2 w-full sm:flex-1 min-w-0">
+                  <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab shrink-0" />
+                  <input
+                    value={p.pergunta}
+                    onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, pergunta: e.target.value } : q)))}
+                    className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+                  />
+                </div>
                 <Select value={p.tipo} onValueChange={(v) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, tipo: v } : q)))}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="texto">Texto</SelectItem>
                     <SelectItem value="sim_nao">Sim/Não</SelectItem>
@@ -184,9 +186,9 @@ function IaPage() {
                 <input
                   value={p.criterio}
                   onChange={(e) => setPerguntas((xs) => xs.map((q, i) => (i === idx ? { ...q, criterio: e.target.value } : q)))}
-                  className="w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs"
+                  className="w-full sm:w-44 h-9 px-2 rounded bg-bg-secondary border border-border text-xs"
                 />
-                <button onClick={() => setPerguntas((x) => x.filter((q) => q.id !== p.id))} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                <button onClick={() => setPerguntas((x) => x.filter((q) => q.id !== p.id))} className="text-muted-foreground hover:text-danger self-end sm:self-auto shrink-0"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
           </div>
@@ -195,7 +197,7 @@ function IaPage() {
           </button>
         </TabsContent>
 
-        <TabsContent value="handoff" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-6">
+        <TabsContent value="handoff" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5 space-y-6">
           <div>
             <div className="label-xs mb-3">Regra de distribuição</div>
             <RadioGroup value={regraHandoff} onValueChange={setRegraHandoff}>
@@ -214,7 +216,7 @@ function IaPage() {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-6 max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
             <div>
               <div className="label-xs mb-3">Início do expediente — {hIni}h</div>
               <Slider value={[hIni]} onValueChange={(v) => setHIni(v[0])} min={0} max={23} />
@@ -226,7 +228,7 @@ function IaPage() {
           </div>
           <div>
             <div className="label-xs mb-3">Dias da semana</div>
-            <ToggleGroup type="multiple" value={dias} onValueChange={(v) => v.length && setDias(v)}>
+            <ToggleGroup type="multiple" value={dias} onValueChange={(v) => v.length && setDias(v)} className="flex-wrap justify-start">
               {["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((d) => (
                 <ToggleGroupItem key={d} value={d.toLowerCase().slice(0,3)}>{d}</ToggleGroupItem>
               ))}
@@ -234,7 +236,7 @@ function IaPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reativacao" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-4">
+        <TabsContent value="reativacao" className="mt-4 bg-bg-secondary border border-border rounded-lg p-3 sm:p-5 space-y-4">
           {reativacao.map((t, n) => (
             <div key={n} className="border border-border rounded-md p-4 space-y-3">
               <div className="flex justify-between items-center">
