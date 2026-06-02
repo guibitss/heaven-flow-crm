@@ -34,8 +34,23 @@ const integracoes = [
 ];
 
 function ConfigPage() {
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<User>({ nome: "", email: "", perfil: "Vendedor", status: "Ativo" });
+
+  const handleSave = () => {
+    if (!form.nome.trim() || !form.email.trim()) {
+      toast.error("Preencha nome e email.");
+      return;
+    }
+    setUsers((prev) => [...prev, form]);
+    setOpen(false);
+    setForm({ nome: "", email: "", perfil: "Vendedor", status: "Ativo" });
+    toast.success("Usuário adicionado para demonstração.");
+  };
+
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-6 max-w-[1400px] mx-auto w-full max-w-full overflow-x-hidden">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
       </div>
@@ -48,11 +63,30 @@ function ConfigPage() {
           <TabsTrigger value="empresa">Empresa</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="usuarios" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
+        <TabsContent value="usuarios" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 w-full max-w-full overflow-hidden">
           <div className="flex justify-end mb-4">
-            <button className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-1.5"><Plus className="h-4 w-4" /> Adicionar usuário</button>
+            <button onClick={() => setOpen(true)} className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-1.5"><Plus className="h-4 w-4" /> Adicionar usuário</button>
           </div>
-          <table className="w-full text-sm">
+
+          {/* Mobile cards */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {users.map((u) => (
+              <div key={u.email} className="w-full max-w-full overflow-hidden bg-bg-tertiary/40 border border-border rounded-lg p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium text-sm break-words">{u.nome}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${perfilCor[u.perfil]}`}>{u.perfil}</span>
+                </div>
+                <div className="font-mono text-xs text-muted-foreground break-all">{u.email}</div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-success">●  {u.status}</span>
+                  <button className="text-xs text-muted-foreground hover:text-foreground">Editar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <table className="w-full text-sm hidden md:table">
             <thead className="text-xs label-xs"><tr><th className="text-left pb-3">Nome</th><th className="text-left pb-3">Email</th><th className="text-left pb-3">Perfil</th><th className="text-left pb-3">Status</th><th></th></tr></thead>
             <tbody className="divide-y divide-border">
               {users.map((u) => (
@@ -66,7 +100,10 @@ function ConfigPage() {
               ))}
             </tbody>
           </table>
+
+          <p className="text-xs text-muted-foreground mt-4">Cadastro real com acesso será conectado na implantação.</p>
         </TabsContent>
+
 
         <TabsContent value="integracoes" className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           {integracoes.map((i) => (
