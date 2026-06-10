@@ -1,0 +1,8 @@
+{
+  "_comment": "Config do Deno para as Edge Functions/ETL (supabase/functions, scripts, tests). Mantém o Deno usando o cache global de JSR/npm em vez do node_modules do bun (que é da app React). Não afeta o vite/bun.",
+  "nodeModulesDir": "none",
+  "tasks": {
+    "check": "deno check supabase/functions/discover_google_maps/index.ts supabase/functions/qualify_lead/index.ts",
+    "test": "deno test --allow-read --allow-env tests/logic_test.ts"
+  }
+}
