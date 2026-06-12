@@ -1,397 +1,744 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Play, Plus, Trash2, Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Building2,
+  Loader2,
+  MapPin,
+  Play,
+  Plus,
+  Radio,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PulseFlash } from "@/components/common/pulse-flash";
+import { CountUp } from "@/components/common/count-up";
+import { DirtyStateBar } from "@/components/common/dirty-state-bar";
+import { EmptyState } from "@/components/common/empty-state";
+import { heatColor } from "@/lib/heat";
+import {
+  DEFAULT_MAPS_CONFIG,
+  DEFAULT_RECEITA_CONFIG,
+  parseMapsConfig,
+  parseReceitaConfig,
+  useCaptacaoConfig,
+  useCaptacaoRealtime,
+  useCaptadosHoje,
+  useSalvarCaptacao,
+  useUltimaCaptacao,
+  type GoogleMapsConfig,
+  type ReceitaConfig,
+} from "@/hooks/use-captacao";
 
 export const Route = createFileRoute("/_app/captacao")({
   component: CaptacaoPage,
 });
 
-const cnaesList = [
-  { c: "35.11-5/01", d: "Geração de energia elétrica" },
-  { c: "43.21-5/00", d: "Instalação e manutenção elétrica" },
-  { c: "71.12-0/00", d: "Serviços de engenharia" },
-  { c: "47.42-3/00", d: "Comércio varejista de materiais elétricos" },
+const CNAES_PADRAO: { codigo: string; descricao: string }[] = [
+  { codigo: "35.11", descricao: "Geração de energia elétrica" },
+  { codigo: "43.21", descricao: "Instalações elétricas" },
+  { codigo: "43.22", descricao: "Instalações hidráulicas e de climatização" },
+  { codigo: "71.12", descricao: "Serviços de engenharia" },
+  { codigo: "47.42", descricao: "Comércio de material elétrico" },
 ];
 
-type CfgRow = {
-  id: number;
-  captacao_ativa: boolean;
-  google_maps_ativo: boolean;
-  google_maps_config: any;
-  receita_ativo: boolean;
-  receita_config: any;
-};
-
-const defaultMaps = { cidades: ["Curitiba", "São Paulo"], raio_km: 50, palavras_chave: ["energia solar"], volume_diario_max: 150 };
-const defaultReceita = { ufs: ["PR", "SP"], cnaes: cnaesList.map((c) => c.c), capital_minimo: 50000, anos_mercado_min: 2 };
+const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
 
 function CaptacaoPage() {
-  const qc = useQueryClient();
+  const { data: cfg, isLoading } = useCaptacaoConfig();
+  const salvar = useSalvarCaptacao();
+  useCaptacaoRealtime();
 
-  const { data: cfg, isLoading } = useQuery({
-    queryKey: ["configuracoes_captacao"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("configuracoes_captacao").select("*").eq("id", 1).maybeSingle();
-      if (error) throw error;
-      return (data ?? { id: 1, captacao_ativa: true, google_maps_ativo: false, google_maps_config: defaultMaps, receita_ativo: false, receita_config: defaultReceita }) as CfgRow;
-    },
-  });
+  // Drafts dos jsonbs (DirtyStateBar). Switches persistem imediato, fora daqui.
+  const [receita, setReceita] = useState<ReceitaConfig>(DEFAULT_RECEITA_CONFIG);
+  const [maps, setMaps] = useState<GoogleMapsConfig>(DEFAULT_MAPS_CONFIG);
+  const [initialized, setInitialized] = useState(false);
 
-  const [maps, setMaps] = useState<any>(defaultMaps);
-  const [receita, setReceita] = useState<any>(defaultReceita);
-  const [ativa, setAtiva] = useState(true);
+  const savedReceita = useMemo(
+    () => parseReceitaConfig(cfg?.receita_config),
+    [cfg?.receita_config],
+  );
+  const savedMaps = useMemo(
+    () => parseMapsConfig(cfg?.google_maps_config),
+    [cfg?.google_maps_config],
+  );
 
   useEffect(() => {
-    if (cfg) {
-      setMaps({ ...defaultMaps, ...(cfg.google_maps_config ?? {}) });
-      setReceita({ ...defaultReceita, ...(cfg.receita_config ?? {}) });
-      setAtiva(cfg.captacao_ativa);
+    if (cfg !== undefined && !initialized) {
+      setReceita(savedReceita);
+      setMaps(savedMaps);
+      setInitialized(true);
     }
-  }, [cfg]);
+  }, [cfg, initialized, savedReceita, savedMaps]);
 
-  const saveCfg = useMutation({
-    mutationFn: async (patch: Partial<CfgRow>) => {
-      const { error } = await supabase
-        .from("configuracoes_captacao")
-        .upsert({ id: 1, captacao_ativa: ativa, google_maps_config: maps, receita_config: receita, ...patch, updated_at: new Date().toISOString() });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Configuração salva");
-      qc.invalidateQueries({ queryKey: ["configuracoes_captacao"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar"),
-  });
+  const dirty =
+    initialized &&
+    (JSON.stringify(receita) !== JSON.stringify(savedReceita) ||
+      JSON.stringify(maps) !== JSON.stringify(savedMaps));
+
+  const salvarConfigs = () => {
+    salvar.mutate(
+      {
+        receita_config: JSON.parse(JSON.stringify(receita)),
+        google_maps_config: JSON.parse(JSON.stringify(maps)),
+      },
+      { onSuccess: () => toast.success("Configurações de captação salvas") },
+    );
+  };
+
+  const descartar = () => {
+    setReceita(savedReceita);
+    setMaps(savedMaps);
+  };
+
+  // Switches persistem imediato (sem dirty bar).
+  const toggleCampo = (
+    campo: "captacao_ativa" | "receita_ativo" | "google_maps_ativo",
+    valor: boolean,
+    labelOn: string,
+    labelOff: string,
+  ) => {
+    salvar.mutate(
+      { [campo]: valor },
+      { onSuccess: () => toast.success(valor ? labelOn : labelOff) },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <Skeleton className="shimmer-heaven h-9 w-64" />
+        <Skeleton className="shimmer-heaven h-32 w-full" />
+        <Skeleton className="shimmer-heaven h-72 w-full" />
+        <Skeleton className="shimmer-heaven h-64 w-full" />
+      </div>
+    );
+  }
+
+  const captacaoAtiva = cfg?.captacao_ativa ?? false;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6 pb-24">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Captação automatizada</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure as regras para encontrar empresas automaticamente e transformar oportunidades em leads no CRM.
+        <h1 className="text-3xl font-bold tracking-tight">Captação</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Painel de controle do agente de prospecção — fontes, filtros e volume.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        <div className="space-y-6">
-          <div className="bg-bg-secondary border border-border rounded-lg p-5 flex items-center justify-between">
-            <div>
-              <div className="font-semibold">Captação automática</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {ativa ? "Ativada" : "Desativada"}
-              </div>
-            </div>
-            <Switch
-              checked={ativa}
-              onCheckedChange={(v) => {
-                setAtiva(v);
-                saveCfg.mutate({ captacao_ativa: v });
-              }}
-            />
-          </div>
+      <PowerSwitch
+        ativa={captacaoAtiva}
+        saving={salvar.isPending}
+        onToggle={(v) =>
+          toggleCampo(
+            "captacao_ativa",
+            v,
+            "Captação ativada",
+            "Captação em espera",
+          )
+        }
+        volumeMax={savedReceita.volume_diario_max}
+      />
 
-          {isLoading ? (
-            <Skeleton className="h-72 w-full" />
-          ) : (
-            <Tabs defaultValue="maps">
-              <TabsList>
-                <TabsTrigger value="maps">Google Maps</TabsTrigger>
-                <TabsTrigger value="receita">Receita Federal</TabsTrigger>
-                <TabsTrigger value="blacklist">Blacklist</TabsTrigger>
-              </TabsList>
+      <CanalReceita
+        ativo={cfg?.receita_ativo ?? false}
+        onToggleAtivo={(v) =>
+          toggleCampo(
+            "receita_ativo",
+            v,
+            "Canal Receita Federal ativado",
+            "Canal Receita Federal desativado",
+          )
+        }
+        config={receita}
+        onChange={setReceita}
+      />
 
-              <TabsContent value="maps" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <p className="text-sm text-muted-foreground">
-                  Busca empresas por cidade, raio e palavras-chave, como energia solar, construção ou engenharia.
-                </p>
-                <Section title="Cidades alvo" hint="">
-                  <ChipInput value={maps.cidades ?? []} onChange={(cidades) => setMaps({ ...maps, cidades })} />
-                </Section>
-                <Section title="Raio (km)" hint="">
-                  <SliderField value={maps.raio_km ?? 50} onChange={(raio_km) => setMaps({ ...maps, raio_km })} min={1} max={200} suffix="km" />
-                </Section>
-                <Section title="Palavras-chave" hint="">
-                  <ChipInput value={maps.palavras_chave ?? []} onChange={(palavras_chave) => setMaps({ ...maps, palavras_chave })} />
-                </Section>
-                <Section title="Volume diário máximo" hint="Limite de leads criados por dia">
-                  <SliderField value={maps.volume_diario_max ?? 150} onChange={(volume_diario_max) => setMaps({ ...maps, volume_diario_max })} min={10} max={500} suffix=" leads/dia" />
-                </Section>
-                <div className="pt-2">
-                  <button onClick={() => saveCfg.mutate({})} disabled={saveCfg.isPending} className="h-9 px-4 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground text-sm font-medium">
-                    {saveCfg.isPending ? "Salvando..." : "Salvar Google Maps"}
-                  </button>
-                </div>
-              </TabsContent>
+      <CanalGoogleMaps
+        ativo={cfg?.google_maps_ativo ?? false}
+        onToggleAtivo={(v) =>
+          toggleCampo(
+            "google_maps_ativo",
+            v,
+            "Canal Google Maps ativado",
+            "Canal Google Maps desativado",
+          )
+        }
+        config={maps}
+        onChange={setMaps}
+      />
 
-              <TabsContent value="receita" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-5">
-                <p className="text-sm text-muted-foreground">
-                  Filtra empresas por UF, CNAE, capital social e tempo de mercado para encontrar leads com maior potencial.
-                </p>
-                <Section title="UFs" hint="">
-                  <ChipInput value={receita.ufs ?? []} onChange={(ufs) => setReceita({ ...receita, ufs })} />
-                </Section>
-                <Section title="CNAEs" hint="Segmentos de empresas que serão buscados">
-                  <div className="space-y-2">
-                    {cnaesList.map((c) => {
-                      const checked = (receita.cnaes ?? []).includes(c.c);
-                      return (
-                        <label key={c.c} className="flex items-center gap-3 text-sm">
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(v) => {
-                              const list = new Set<string>(receita.cnaes ?? []);
-                              if (v) list.add(c.c); else list.delete(c.c);
-                              setReceita({ ...receita, cnaes: Array.from(list) });
-                            }}
-                          />
-                          <span className="font-mono text-xs text-muted-foreground">{c.c}</span>
-                          <span>{c.d}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Section>
-                <Section title="Capital social mínimo (R$)" hint="">
-                  <input
-                    type="number"
-                    value={receita.capital_minimo ?? 0}
-                    onChange={(e) => setReceita({ ...receita, capital_minimo: Number(e.target.value) })}
-                    className="w-48 h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm"
-                  />
-                </Section>
-                <Section title="Tempo mínimo de mercado (anos)" hint="">
-                  <SliderField value={receita.anos_mercado_min ?? 0} onChange={(anos_mercado_min) => setReceita({ ...receita, anos_mercado_min })} min={0} max={20} suffix=" anos" />
-                </Section>
-                <div className="pt-2">
-                  <button onClick={() => saveCfg.mutate({})} disabled={saveCfg.isPending} className="h-9 px-4 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground text-sm font-medium">
-                    {saveCfg.isPending ? "Salvando..." : "Salvar Receita"}
-                  </button>
-                </div>
-              </TabsContent>
+      <UltimasExecucoes />
 
-              <TabsContent value="blacklist" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5">
-                <p className="text-sm text-muted-foreground mb-3">
-                  Empresas cadastradas aqui não serão importadas para o CRM. Use para bloquear concorrentes, clientes atuais ou empresas que não devem entrar no funil.
-                </p>
-                <BlacklistTab />
-              </TabsContent>
-            </Tabs>
-          )}
-        </div>
-
-        <SidebarStatus ativa={ativa} />
-      </div>
-    </div>
-  );
-}
-
-function SidebarStatus({ ativa }: { ativa: boolean }) {
-  const qc = useQueryClient();
-
-  const { data: ultimo } = useQuery({
-    queryKey: ["eventos-captacao"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("eventos_feed")
-        .select("*")
-        .eq("tipo", "captacao")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    refetchInterval: 30000,
-  });
-
-  const executar = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("eventos_feed").insert({
-        tipo: "captacao" as any,
-        texto: "Captação manual solicitada",
-        metadata: { manual: true, ativa },
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Captação solicitada. A execução real será conectada na integração.");
-      qc.invalidateQueries({ queryKey: ["eventos-captacao"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao executar"),
-  });
-
-  return (
-    <aside className="bg-bg-secondary border border-border rounded-lg p-5 h-fit sticky top-20 space-y-4">
-      <div>
-        <div className="label-xs mb-2">Status</div>
-        <div className="text-sm">{ativa ? "Captação ativa" : "Captação desativada"}</div>
-      </div>
-      <div className="border-t border-border pt-4">
-        <div className="label-xs mb-1">Última execução</div>
-        {ultimo ? (
-          <>
-            <div className="text-sm">{ultimo.texto}</div>
-            <div className="text-xs text-muted-foreground mt-1 font-mono">
-              {formatDistanceToNow(new Date(ultimo.created_at!), { addSuffix: true, locale: ptBR })}
-            </div>
-          </>
-        ) : (
-          <div className="text-xs text-muted-foreground">Nenhuma captação executada ainda.</div>
-        )}
-      </div>
-      <button
-        onClick={() => executar.mutate()}
-        disabled={executar.isPending}
-        className="w-full h-10 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground font-medium text-sm flex items-center justify-center gap-2 glow-orange disabled:opacity-50"
-      >
-        {executar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-        Executar agora
-      </button>
-    </aside>
-  );
-}
-
-function BlacklistTab() {
-  const qc = useQueryClient();
-  const [cnpj, setCnpj] = useState("");
-  const [razao, setRazao] = useState("");
-  const [motivo, setMotivo] = useState("");
-
-  const { data: itens = [], isLoading } = useQuery({
-    queryKey: ["blacklist"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("blacklist").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const addItem = useMutation({
-    mutationFn: async () => {
-      if (!cnpj.trim()) throw new Error("Informe o CNPJ");
-      const { error } = await supabase.from("blacklist").insert({ cnpj: cnpj.trim(), razao_social: razao || null, motivo: motivo || null });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Adicionado à blacklist");
-      setCnpj(""); setRazao(""); setMotivo("");
-      qc.invalidateQueries({ queryKey: ["blacklist"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao adicionar"),
-  });
-
-  const removeItem = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("blacklist").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Removido");
-      qc.invalidateQueries({ queryKey: ["blacklist"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
-  });
-
-  return (
-    <>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="CNPJ" className="h-9 px-3 rounded-md bg-bg-tertiary border border-border text-sm font-mono w-44" />
-        <input value={razao} onChange={(e) => setRazao(e.target.value)} placeholder="Razão social" className="h-9 px-3 rounded-md bg-bg-tertiary border border-border text-sm flex-1 min-w-[180px]" />
-        <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo" className="h-9 px-3 rounded-md bg-bg-tertiary border border-border text-sm flex-1 min-w-[180px]" />
-        <button onClick={() => addItem.mutate()} disabled={addItem.isPending} className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-1.5">
-          <Plus className="h-4 w-4" /> Adicionar
-        </button>
-      </div>
-      {isLoading ? (
-        <Skeleton className="h-32 w-full" />
-      ) : itens.length === 0 ? (
-        <div className="text-sm text-muted-foreground text-center py-8">Nenhum CNPJ na blacklist</div>
-      ) : (
-        <table className="w-full text-sm">
-          <thead className="text-xs label-xs">
-            <tr>
-              <th className="text-left pb-3">CNPJ</th>
-              <th className="text-left pb-3">Razão Social</th>
-              <th className="text-left pb-3">Motivo</th>
-              <th className="text-left pb-3">Adicionado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {itens.map((b: any) => (
-              <tr key={b.id}>
-                <td className="py-3 font-mono text-xs">{b.cnpj}</td>
-                <td className="py-3">{b.razao_social ?? "—"}</td>
-                <td className="py-3 text-muted-foreground">{b.motivo ?? "—"}</td>
-                <td className="py-3 font-mono text-xs text-muted-foreground">
-                  {b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}
-                </td>
-                <td className="py-3 text-right">
-                  <button onClick={() => removeItem.mutate(b.id)} className="text-muted-foreground hover:text-danger">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
-  );
-}
-
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="label-xs mb-1">{title}</div>
-      {hint ? <div className="text-xs text-muted-foreground mb-2">{hint}</div> : null}
-      {children}
-    </div>
-  );
-}
-
-function ChipInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const [v, setV] = useState("");
-  return (
-    <div className="border border-border rounded-md bg-bg-tertiary p-2 flex flex-wrap gap-2 min-h-[44px]">
-      {value.map((c) => (
-        <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-heaven-orange/15 text-heaven-orange border border-heaven-orange/30">
-          {c}
-          <button onClick={() => onChange(value.filter((x) => x !== c))}>×</button>
-        </span>
-      ))}
-      <input
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && v.trim()) {
-            e.preventDefault();
-            onChange([...value, v.trim()]);
-            setV("");
-          }
-        }}
-        className="flex-1 min-w-[100px] bg-transparent outline-none text-sm"
-        placeholder="Digite e pressione Enter..."
+      <DirtyStateBar
+        dirty={dirty}
+        saving={salvar.isPending}
+        onSave={salvarConfigs}
+        onDiscard={descartar}
+        label="Alterações de captação não salvas"
       />
     </div>
   );
 }
 
-function SliderField({ value, onChange, min, max, suffix }: { value: number; onChange: (v: number) => void; min: number; max: number; suffix: string }) {
+// ---------------------------------------------------------------- PowerSwitch
+
+function PowerSwitch({
+  ativa,
+  saving,
+  onToggle,
+  volumeMax,
+}: {
+  ativa: boolean;
+  saving: boolean;
+  onToggle: (v: boolean) => void;
+  volumeMax: number;
+}) {
   return (
-    <div className="flex items-center gap-4">
-      <Slider value={[value]} onValueChange={(vs) => onChange(vs[0])} min={min} max={max} className="flex-1" />
-      <span className="font-mono text-sm w-28 text-right">{value}{suffix}</span>
+    <section className="energized-top rounded-lg border border-border bg-bg-secondary p-6">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <span
+            aria-hidden
+            className={
+              ativa
+                ? "glow-orange inline-block size-3 rounded-full bg-heaven-orange"
+                : "inline-block size-3 rounded-full bg-heaven-gray"
+            }
+          />
+          <div>
+            <div
+              className={
+                "font-mono text-2xl font-bold tracking-widest tabular-nums " +
+                (ativa ? "text-heaven-orange" : "text-muted-foreground")
+              }
+            >
+              {ativa ? "GERANDO" : "EM ESPERA"}
+            </div>
+            <div className="label-xs mt-1">
+              {ativa
+                ? "Agente de prospecção em operação"
+                : "Agente de prospecção pausado"}
+            </div>
+          </div>
+        </div>
+        <Switch
+          checked={ativa}
+          disabled={saving}
+          onCheckedChange={onToggle}
+          aria-label={ativa ? "Desativar captação" : "Ativar captação"}
+          className="scale-150"
+        />
+      </div>
+      <CapacityBar volumeMax={volumeMax} />
+    </section>
+  );
+}
+
+function CapacityBar({ volumeMax }: { volumeMax: number }) {
+  const { data: hoje, isLoading } = useCaptadosHoje();
+  const captados = hoje ?? 0;
+  const pct = volumeMax > 0 ? Math.min(100, (captados / volumeMax) * 100) : 0;
+  const cor = heatColor(pct);
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-end justify-between">
+        <span className="label-xs">Captados hoje</span>
+        {isLoading ? (
+          <Skeleton className="shimmer-heaven h-8 w-24" />
+        ) : (
+          <span className="font-mono text-[34px] font-bold leading-none tabular-nums">
+            <CountUp value={captados} />
+            <span className="text-base font-normal text-muted-foreground">
+              {" "}
+              / {volumeMax}
+            </span>
+          </span>
+        )}
+      </div>
+      <div
+        className="mt-2 h-0.5 w-full rounded-full bg-bg-tertiary"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={volumeMax}
+        aria-valuenow={captados}
+        aria-label={`Captados hoje: ${captados} de ${volumeMax}`}
+      >
+        <div
+          className="h-full rounded-full transition-[width] duration-500"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: cor,
+            boxShadow: pct > 70 ? `0 0 8px ${cor}` : undefined,
+          }}
+        />
+      </div>
     </div>
+  );
+}
+
+// ----------------------------------------------------------- Canal Receita
+
+function CanalReceita({
+  ativo,
+  onToggleAtivo,
+  config,
+  onChange,
+}: {
+  ativo: boolean;
+  onToggleAtivo: (v: boolean) => void;
+  config: ReceitaConfig;
+  onChange: (c: ReceitaConfig) => void;
+}) {
+  const [novoCnae, setNovoCnae] = useState("");
+
+  const addCnae = () => {
+    const v = novoCnae.trim();
+    if (!/^\d{2}\.\d{2}$/.test(v)) {
+      toast.error("CNAE deve estar no formato 00.00 (ex.: 43.21)");
+      return;
+    }
+    if (config.cnaes.includes(v)) {
+      toast.error("CNAE já adicionado");
+      return;
+    }
+    onChange({ ...config, cnaes: [...config.cnaes, v] });
+    setNovoCnae("");
+  };
+
+  const toggleUf = (uf: string) => {
+    const tem = config.ufs.includes(uf);
+    onChange({
+      ...config,
+      ufs: tem ? config.ufs.filter((u) => u !== uf) : [...config.ufs, uf],
+    });
+  };
+
+  return (
+    <section className="energized-top rounded-lg border border-border bg-bg-secondary p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Building2 className="size-5 text-muted-foreground" aria-hidden />
+          <div>
+            <h2 className="text-base font-semibold">Receita Federal</h2>
+            <p className="text-xs text-muted-foreground">
+              Empresas por CNAE e UF, direto da base de CNPJs.
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={ativo}
+          onCheckedChange={onToggleAtivo}
+          aria-label={
+            ativo
+              ? "Desativar canal Receita Federal"
+              : "Ativar canal Receita Federal"
+          }
+        />
+      </div>
+
+      <div className="mt-5 space-y-5">
+        <div>
+          <div className="label-xs mb-2">CNAEs monitorados</div>
+          <div className="flex flex-wrap gap-2">
+            {CNAES_PADRAO.map((c) => {
+              const selecionado = config.cnaes.includes(c.codigo);
+              return (
+                <button
+                  key={c.codigo}
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...config,
+                      cnaes: selecionado
+                        ? config.cnaes.filter((x) => x !== c.codigo)
+                        : [...config.cnaes, c.codigo],
+                    })
+                  }
+                  aria-pressed={selecionado}
+                  className={
+                    "rounded-md border px-2.5 py-1.5 text-xs transition-colors " +
+                    (selecionado
+                      ? "border-heaven-orange/40 bg-heaven-orange/10 text-foreground"
+                      : "border-border bg-bg-tertiary text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  <span className="font-mono tabular-nums">{c.codigo}</span>
+                  <span className="ml-1.5">{c.descricao}</span>
+                </button>
+              );
+            })}
+            {config.cnaes
+              .filter((c) => !CNAES_PADRAO.some((p) => p.codigo === c))
+              .map((c) => (
+                <span
+                  key={c}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-heaven-orange/40 bg-heaven-orange/10 px-2.5 py-1.5 font-mono text-xs tabular-nums"
+                >
+                  {c}
+                  <button
+                    type="button"
+                    aria-label={`Remover CNAE ${c}`}
+                    onClick={() =>
+                      onChange({
+                        ...config,
+                        cnaes: config.cnaes.filter((x) => x !== c),
+                      })
+                    }
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              value={novoCnae}
+              onChange={(e) => setNovoCnae(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCnae();
+                }
+              }}
+              placeholder="Adicionar CNAE (ex.: 42.21)"
+              className="h-8 w-52 font-mono text-xs"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addCnae}
+              aria-label="Adicionar CNAE"
+            >
+              <Plus className="size-3.5" aria-hidden /> Adicionar
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <div className="label-xs mb-2">
+            UFs{" "}
+            {config.ufs.length === 0 ? (
+              <span className="normal-case text-muted-foreground">
+                — nenhuma selecionada: Brasil inteiro
+              </span>
+            ) : (
+              <span className="font-mono normal-case text-muted-foreground">
+                — {config.ufs.length} selecionada(s)
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-x-1 gap-y-1.5">
+            {UFS.map((uf) => {
+              const sel = config.ufs.includes(uf);
+              return (
+                <button
+                  key={uf}
+                  type="button"
+                  onClick={() => toggleUf(uf)}
+                  aria-pressed={sel}
+                  aria-label={
+                    sel ? `Remover UF ${uf}` : `Selecionar UF ${uf}`
+                  }
+                  className={
+                    "rounded px-2 py-1 font-mono text-xs tabular-nums transition-colors " +
+                    (sel
+                      ? "text-foreground underline decoration-heaven-orange decoration-2 underline-offset-4"
+                      : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {uf}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-bg-tertiary px-4 py-3">
+          <div>
+            <div className="text-sm font-medium">Gate solar</div>
+            <div className="text-xs text-muted-foreground">
+              Só nomes com termo solar viram lead.
+            </div>
+          </div>
+          <Switch
+            checked={config.solar_gate}
+            onCheckedChange={(v) => onChange({ ...config, solar_gate: v })}
+            aria-label={
+              config.solar_gate ? "Desativar gate solar" : "Ativar gate solar"
+            }
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="label-xs">Volume diário máximo</div>
+            <div className="text-xs text-muted-foreground">
+              Limite de leads importados por dia.
+            </div>
+          </div>
+          <Input
+            type="number"
+            min={1}
+            value={config.volume_diario_max}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                volume_diario_max: Math.max(1, Number(e.target.value) || 1),
+              })
+            }
+            aria-label="Volume diário máximo"
+            className="h-9 w-28 text-right font-mono tabular-nums"
+          />
+        </div>
+
+        <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+          A importação roda via ETL local — as configurações valem para a
+          próxima execução.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ------------------------------------------------------- Canal Google Maps
+
+function CanalGoogleMaps({
+  ativo,
+  onToggleAtivo,
+  config,
+  onChange,
+}: {
+  ativo: boolean;
+  onToggleAtivo: (v: boolean) => void;
+  config: GoogleMapsConfig;
+  onChange: (c: GoogleMapsConfig) => void;
+}) {
+  const qc = useQueryClient();
+
+  const executar = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        "discover_google_maps",
+        { body: {} },
+      );
+      if (error) throw error;
+      return data as { encontrados?: number; inseridos?: number } | null;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        `Busca concluída: ${data?.encontrados ?? 0} encontrados, ${data?.inseridos ?? 0} inseridos`,
+      );
+      qc.invalidateQueries({ queryKey: ["captacao-execucoes"] });
+      qc.invalidateQueries({ queryKey: ["captacao-captados-hoje"] });
+    },
+    onError: (e: Error) => {
+      toast.error(`Falha na busca: ${e.message || "erro desconhecido"}`);
+    },
+  });
+
+  return (
+    <section className="rounded-lg border border-border bg-bg-secondary p-6 hairline-top">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <MapPin className="size-5 text-muted-foreground" aria-hidden />
+          <div>
+            <h2 className="text-base font-semibold">Google Maps</h2>
+            <p className="text-xs text-muted-foreground">
+              Empresas do setor solar por cidade e termo de busca.
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={ativo}
+          onCheckedChange={onToggleAtivo}
+          aria-label={
+            ativo
+              ? "Desativar canal Google Maps"
+              : "Ativar canal Google Maps"
+          }
+        />
+      </div>
+
+      <div className="mt-5 space-y-5">
+        <div>
+          <div className="label-xs mb-2">Cidades alvo</div>
+          <TagInput
+            value={config.cities}
+            onChange={(cities) => onChange({ ...config, cities })}
+            placeholder="Ex.: Maringá, PR — Enter para adicionar"
+            removeLabel={(c) => `Remover cidade ${c}`}
+          />
+        </div>
+
+        <div>
+          <div className="label-xs mb-2">Termos de busca</div>
+          <TagInput
+            value={config.queries}
+            onChange={(queries) => onChange({ ...config, queries })}
+            placeholder="Ex.: energia solar — Enter para adicionar"
+            removeLabel={(q) => `Remover termo ${q}`}
+          />
+        </div>
+
+        <div>
+          <div className="label-xs mb-2">Profundidade da busca</div>
+          <div className="flex items-center gap-4">
+            <Slider
+              value={[config.max_pages]}
+              onValueChange={(vs) =>
+                onChange({ ...config, max_pages: vs[0] ?? 2 })
+              }
+              min={1}
+              max={3}
+              step={1}
+              className="max-w-xs flex-1"
+              aria-label="Páginas por cidade"
+            />
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">
+              ~{config.max_pages}×20 resultados/cidade
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <Button
+            type="button"
+            onClick={() => executar.mutate()}
+            disabled={executar.isPending}
+            className="glow-orange"
+          >
+            {executar.isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Play className="size-4" aria-hidden />
+            )}
+            {executar.isPending ? "Executando..." : "Executar agora"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TagInput({
+  value,
+  onChange,
+  placeholder,
+  removeLabel,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+  removeLabel: (item: string) => string;
+}) {
+  const [texto, setTexto] = useState("");
+
+  const add = () => {
+    const v = texto.trim();
+    if (!v) return;
+    if (value.includes(v)) {
+      toast.error("Item já adicionado");
+      return;
+    }
+    onChange([...value, v]);
+    setTexto("");
+  };
+
+  return (
+    <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-md border border-border bg-bg-tertiary p-2">
+      {value.map((item) => (
+        <span
+          key={item}
+          className="inline-flex items-center gap-1.5 rounded border border-border bg-bg-secondary px-2 py-1 text-xs"
+        >
+          {item}
+          <button
+            type="button"
+            aria-label={removeLabel(item)}
+            onClick={() => onChange(value.filter((x) => x !== item))}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        placeholder={placeholder}
+        className="min-w-[180px] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+// ------------------------------------------------------ Últimas execuções
+
+function UltimasExecucoes() {
+  const { data: eventos, isLoading } = useUltimaCaptacao();
+
+  return (
+    <section className="rounded-lg border border-border bg-bg-secondary p-6 hairline-top">
+      <div className="mb-4 flex items-center gap-2">
+        <Radio className="size-4 text-muted-foreground" aria-hidden />
+        <h2 className="label-xs">Últimas execuções</h2>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="shimmer-heaven h-10 w-full" />
+          <Skeleton className="shimmer-heaven h-10 w-full" />
+          <Skeleton className="shimmer-heaven h-10 w-full" />
+        </div>
+      ) : !eventos || eventos.length === 0 ? (
+        <EmptyState
+          title="Nenhuma execução registrada"
+          description="Quando o agente captar empresas, cada execução aparece aqui."
+        />
+      ) : (
+        <PulseFlash pulseKey={eventos[0]?.id ?? "vazio"}>
+          <ul className="divide-y divide-border">
+            {eventos.map((ev) => (
+              <li
+                key={ev.id}
+                className="flex items-baseline justify-between gap-4 py-2.5"
+              >
+                <span className="text-sm">{ev.texto}</span>
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  {ev.created_at
+                    ? formatDistanceToNow(new Date(ev.created_at), {
+                        addSuffix: true,
+                        locale: ptBR,
+                      })
+                    : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </PulseFlash>
+      )}
+    </section>
   );
 }

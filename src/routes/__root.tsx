@@ -12,21 +12,41 @@ import { AuthProvider } from "@/lib/auth-context";
 
 import appCss from "../styles.css?url";
 
+// Fagulha estática — único acento de cor nas telas de erro.
+function FagulhaSvg() {
+  return (
+    <svg
+      className="mx-auto mb-2 text-heaven-orange"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="14" r="3" fill="currentColor" />
+      <circle cx="12" cy="14" r="6.5" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1" />
+      <circle cx="17" cy="7" r="1.2" fill="currentColor" opacity="0.6" />
+      <circle cx="7" cy="9" r="0.8" fill="currentColor" opacity="0.4" />
+    </svg>
+  );
+}
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <FagulhaSvg />
+        <h1 className="font-mono text-[96px] leading-none font-bold text-bg-tertiary select-none">404</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          A página que você procura não existe ou foi movida.
         </p>
         <div className="mt-6">
           <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-md bg-heaven-orange px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-heaven-orange-deep"
           >
-            Go home
+            Voltar ao dashboard
           </Link>
         </div>
       </div>
@@ -34,18 +54,17 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+function ErrorComponent({ reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
+        <FagulhaSvg />
+        <h1 className="font-mono text-[96px] leading-none font-bold text-bg-tertiary select-none">500</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Algo deu errado</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Ocorreu um erro inesperado. Tente novamente ou volte ao dashboard.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -53,16 +72,16 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-heaven-orange px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-heaven-orange-deep"
           >
-            Try again
+            Tentar novamente
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-bg-tertiary"
           >
-            Go home
-          </a>
+            Voltar ao dashboard
+          </Link>
         </div>
       </div>
     </div>
@@ -81,9 +100,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "Heaven CRM" },
       { property: "og:description", content: "CRM e Dashboard Heaven — Estruturas para painéis fotovoltaicos" },
       { name: "twitter:description", content: "CRM e Dashboard Heaven — Estruturas para painéis fotovoltaicos" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/47aa890d-2056-473f-bf80-6a67ce0946b6/id-preview-8b5e4156--1d26a9ab-1a2f-4f69-a289-8646c17089fd.lovable.app-1779836381235.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/47aa890d-2056-473f-bf80-6a67ce0946b6/id-preview-8b5e4156--1d26a9ab-1a2f-4f69-a289-8646c17089fd.lovable.app-1779836381235.png" },
-      { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

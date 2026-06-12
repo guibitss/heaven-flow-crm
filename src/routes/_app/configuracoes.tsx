@@ -1,204 +1,412 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Building2, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScoreStudio } from "@/components/score/score-studio";
+import { EmptyState } from "@/components/common/empty-state";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { HEAT } from "@/lib/heat";
 
 export const Route = createFileRoute("/_app/configuracoes")({
   component: ConfigPage,
 });
 
-type User = { nome: string; email: string; perfil: string; status: string };
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type UserRole = Database["public"]["Enums"]["user_role"];
 
-const initialUsers: User[] = [
-  { nome: "Admin Heaven", email: "admin@heaven.com.br", perfil: "Admin", status: "Ativo" },
-  { nome: "Carlos Silva", email: "carlos@heaven.com.br", perfil: "Vendedor", status: "Ativo" },
-  { nome: "José Almeida", email: "jose@heaven.com.br", perfil: "Vendedor", status: "Ativo" },
-  { nome: "Mariana Costa", email: "mariana@heaven.com.br", perfil: "Gestor", status: "Ativo" },
-];
-
-const perfilCor: Record<string, string> = {
-  Admin: "bg-heaven-orange/20 text-heaven-orange",
-  Gestor: "bg-info/20 text-info",
-  Vendedor: "bg-bg-tertiary text-muted-foreground",
+// Role: dot + texto (cor nunca sozinha). Admin = brasa, gestor = rust, vendedor = cinza.
+const ROLE_DOT: Record<UserRole, string> = {
+  admin: HEAT[4],
+  gestor: HEAT[2],
+  vendedor: HEAT[0],
 };
 
-const integracoes = [
-  { nome: "Bling ERP", status: "conectado", desc: "Último sync: há 12 min" },
-  { nome: "WAHA (WhatsApp)", status: "conectado", desc: "Sessão ativa: heaven-comercial" },
-  { nome: "Meta Ads", status: "desconectado", desc: "Em breve" },
-];
+const ROLE_LABEL: Record<UserRole, string> = {
+  admin: "Admin",
+  gestor: "Gestor",
+  vendedor: "Vendedor",
+};
 
-function ConfigPage() {
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<User>({ nome: "", email: "", perfil: "Vendedor", status: "Ativo" });
+function iniciais(nome: string): string {
+  return nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
-  const handleSave = () => {
-    if (!form.nome.trim() || !form.email.trim()) {
-      toast.error("Preencha nome e email.");
-      return;
-    }
-    setUsers((prev) => [...prev, form]);
-    setOpen(false);
-    setForm({ nome: "", email: "", perfil: "Vendedor", status: "Ativo" });
-    toast.success("Usuário adicionado para demonstração.");
+// ====== Dados ======
+
+function useProfiles() {
+  return useQuery({
+    queryKey: ["profiles-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<Pick<Profile, "status" | "limite_leads_abertos">>;
+    }) => {
+      const { error } = await supabase.from("profiles").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, patch }) => {
+      await qc.cancelQueries({ queryKey: ["profiles-config"] });
+      const prev = qc.getQueryData<Profile[]>(["profiles-config"]);
+      qc.setQueryData<Profile[]>(["profiles-config"], (old) =>
+        (old ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      );
+      return { prev };
+    },
+    onError: (e: Error, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["profiles-config"], ctx.prev);
+      toast.error(`Erro ao atualizar usuário: ${e.message}`);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["profiles-config"] });
+      qc.invalidateQueries({ queryKey: ["vendedores"] });
+    },
+  });
+}
+
+// ====== Linha de usuário ======
+
+function LimiteInline({
+  profile,
+  onSave,
+}: {
+  profile: Profile;
+  onSave: (valor: number) => void;
+}) {
+  const [valor, setValor] = useState(String(profile.limite_leads_abertos ?? 0));
+
+  const commit = () => {
+    const n = Math.max(0, Number(valor) || 0);
+    setValor(String(n));
+    if (n !== (profile.limite_leads_abertos ?? 0)) onSave(n);
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto w-full max-w-full overflow-x-hidden">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+    <input
+      type="number"
+      min={0}
+      value={valor}
+      onChange={(e) => setValor(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      aria-label={`Limite de leads abertos de ${profile.nome}`}
+      className="h-7 w-16 rounded-md border border-border bg-bg-tertiary px-2 text-right font-mono text-xs tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring"
+    />
+  );
+}
+
+function RoleCell({ role }: { role: UserRole }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs">
+      <span
+        className="inline-block size-2 rounded-full"
+        style={{ backgroundColor: ROLE_DOT[role] }}
+        aria-hidden
+      />
+      {ROLE_LABEL[role]}
+    </span>
+  );
+}
+
+function UsuariosTab() {
+  const { data: profiles, isLoading } = useProfiles();
+  const update = useUpdateProfile();
+
+  const toggleStatus = (p: Profile, ativo: boolean) => {
+    update.mutate(
+      { id: p.id, patch: { status: ativo ? "ativo" : "pausado" } },
+      {
+        onSuccess: () =>
+          toast.success(
+            ativo ? `${p.nome} reativado.` : `${p.nome} pausado — não recebe novos leads.`,
+          ),
+      },
+    );
+  };
+
+  const salvarLimite = (p: Profile, valor: number) => {
+    update.mutate(
+      { id: p.id, patch: { limite_leads_abertos: valor } },
+      { onSuccess: () => toast.success(`Limite de ${p.nome} atualizado para ${valor}.`) },
+    );
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-bg-secondary hairline-top p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Equipe com acesso ao CRM — status e limite de leads editáveis aqui.
+        </p>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0}>
+              <Button size="sm" disabled aria-disabled="true" className="pointer-events-none">
+                <UserPlus className="mr-1.5 size-3.5" />
+                Convidar usuário
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            Convites exigem backend administrativo — em breve
+          </TooltipContent>
+        </Tooltip>
       </div>
 
-      <Tabs defaultValue="usuarios">
-        <TabsList className="grid grid-cols-2 sm:inline-flex h-auto sm:h-9 w-full sm:w-auto gap-2 sm:gap-0">
-          <TabsTrigger value="usuarios" className="whitespace-normal sm:whitespace-nowrap w-full">Usuários</TabsTrigger>
-          <TabsTrigger value="integracoes" className="whitespace-normal sm:whitespace-nowrap w-full">Integrações</TabsTrigger>
-          <TabsTrigger value="notif" className="whitespace-normal sm:whitespace-nowrap w-full">Notificações</TabsTrigger>
-          <TabsTrigger value="empresa" className="whitespace-normal sm:whitespace-nowrap w-full">Empresa</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="usuarios" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 w-full max-w-full overflow-hidden">
-          <div className="flex justify-end mb-4">
-            <button onClick={() => setOpen(true)} className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium flex items-center gap-1.5"><Plus className="h-4 w-4" /> Adicionar usuário</button>
-          </div>
-
-          {/* Mobile cards */}
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full shimmer-heaven" />
+          <Skeleton className="h-12 w-full shimmer-heaven" />
+          <Skeleton className="h-12 w-full shimmer-heaven" />
+        </div>
+      ) : !profiles || profiles.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Nenhum usuário cadastrado"
+          description="Os perfis aparecem aqui quando contas forem criadas no Supabase Auth."
+        />
+      ) : (
+        <>
+          {/* Mobile: cards */}
           <div className="grid grid-cols-1 gap-3 md:hidden">
-            {users.map((u) => (
-              <div key={u.email} className="w-full max-w-full overflow-hidden bg-bg-tertiary/40 border border-border rounded-lg p-4 space-y-2">
+            {profiles.map((p) => (
+              <div
+                key={p.id}
+                className="space-y-2 rounded-lg border border-border bg-bg-tertiary/40 p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium text-sm break-words">{u.nome}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${perfilCor[u.perfil]}`}>{u.perfil}</span>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bg-tertiary font-mono text-xs">
+                      {iniciais(p.nome)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{p.nome}</p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">
+                        {p.email}
+                      </p>
+                    </div>
+                  </div>
+                  <RoleCell role={p.role} />
                 </div>
-                <div className="font-mono text-xs text-muted-foreground break-all">{u.email}</div>
+                {p.cargo && <p className="text-xs text-muted-foreground">{p.cargo}</p>}
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs text-success">●  {u.status}</span>
-                  <button className="text-xs text-muted-foreground hover:text-foreground">Editar</button>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={p.status === "ativo"}
+                      onCheckedChange={(c) => toggleStatus(p, c)}
+                      aria-label={`Status de ${p.nome}`}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {p.status === "ativo" ? "Ativo" : "Pausado"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="label-xs">Limite</span>
+                    <LimiteInline profile={p} onSave={(v) => salvarLimite(p, v)} />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Desktop table */}
-          <table className="w-full text-sm hidden md:table">
-            <thead className="text-xs label-xs"><tr><th className="text-left pb-3">Nome</th><th className="text-left pb-3">Email</th><th className="text-left pb-3">Perfil</th><th className="text-left pb-3">Status</th><th></th></tr></thead>
+          {/* Desktop: tabela editorial densa */}
+          <table className="hidden w-full text-sm md:table">
+            <thead>
+              <tr className="label-xs">
+                <th className="pb-3 text-left font-medium">Usuário</th>
+                <th className="pb-3 text-left font-medium">Email</th>
+                <th className="pb-3 text-left font-medium">Cargo</th>
+                <th className="pb-3 text-left font-medium">Papel</th>
+                <th className="pb-3 text-left font-medium">Status</th>
+                <th className="pb-3 text-right font-medium">Limite de leads</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-border">
-              {users.map((u) => (
-                <tr key={u.email}>
-                  <td className="py-3">{u.nome}</td>
-                  <td className="py-3 font-mono text-xs text-muted-foreground">{u.email}</td>
-                  <td className="py-3"><span className={`text-xs px-2 py-1 rounded ${perfilCor[u.perfil]}`}>{u.perfil}</span></td>
-                  <td className="py-3"><span className="text-xs text-success">●  {u.status}</span></td>
-                  <td className="py-3 text-right text-xs text-muted-foreground"><button className="hover:text-foreground">Editar</button></td>
+              {profiles.map((p) => (
+                <tr key={p.id}>
+                  <td className="py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-bg-tertiary font-mono text-[10px]">
+                        {iniciais(p.nome)}
+                      </span>
+                      <span className="font-medium">{p.nome}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 font-mono text-xs text-muted-foreground">
+                    {p.email}
+                  </td>
+                  <td className="py-2.5 text-xs text-muted-foreground">
+                    {p.cargo ?? "—"}
+                  </td>
+                  <td className="py-2.5">
+                    <RoleCell role={p.role} />
+                  </td>
+                  <td className="py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={p.status === "ativo"}
+                        onCheckedChange={(c) => toggleStatus(p, c)}
+                        aria-label={`Status de ${p.nome}`}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {p.status === "ativo" ? "Ativo" : "Pausado"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <LimiteInline profile={p} onSave={(v) => salvarLimite(p, v)} />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          <p className="text-xs text-muted-foreground mt-4">Cadastro real com acesso será conectado na implantação.</p>
-        </TabsContent>
-
-
-        <TabsContent value="integracoes" className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {integracoes.map((i) => (
-            <div key={i.nome} className="bg-bg-secondary border border-border rounded-lg p-5">
-              <div className="flex justify-between items-start mb-3">
-                <h4 className="font-semibold">{i.nome}</h4>
-                <span className={`text-xs px-2 py-0.5 rounded ${i.status === "conectado" ? "bg-success/15 text-success" : "bg-bg-tertiary text-muted-foreground"}`}>
-                  {i.status === "conectado" ? "Conectado" : "Desconectado"}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mb-4">{i.desc}</p>
-              <button className="h-9 px-3 rounded-md bg-bg-tertiary hover:bg-bg-tertiary/70 text-sm w-full">{i.status === "conectado" ? "Reconectar" : "Conectar"}</button>
-            </div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="notif" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-4 max-w-2xl">
-          {["Novo lead captado","Handoff IA → Vendedor","Venda fechada","Alerta de inatividade","Resumo diário por email"].map((n) => (
-            <div key={n} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-              <span className="text-sm">{n}</span>
-              <Switch defaultChecked />
-            </div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="empresa" className="mt-4 bg-bg-secondary border border-border rounded-lg p-5 space-y-4 max-w-xl">
-          <div>
-            <label className="label-xs block mb-2">Nome da empresa</label>
-            <input defaultValue="Heaven Estruturas Solares" className="w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
-          </div>
-          <div>
-            <label className="label-xs block mb-2">CNPJ</label>
-            <input defaultValue="00.000.000/0001-00" className="w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm font-mono" />
-          </div>
-          <div>
-            <label className="label-xs block mb-2">Fuso horário</label>
-            <input defaultValue="America/Sao_Paulo" className="w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
-          </div>
-          <div>
-            <label className="label-xs block mb-2">Logo</label>
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-32 rounded bg-bg-tertiary border border-border flex items-center justify-center p-2">
-                <img src="/heaven-logo.png" alt="" className="max-h-full max-w-full object-contain" />
-              </div>
-              <button className="h-9 px-3 rounded-md bg-bg-tertiary text-sm">Alterar logo</button>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)]">
-          <DialogHeader>
-            <DialogTitle>Adicionar usuário</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="nome">Nome</Label>
-              <input id="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className="mt-1 w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 w-full h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Perfil</Label>
-                <Select value={form.perfil} onValueChange={(v) => setForm({ ...form, perfil: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Gestor">Gestor</SelectItem>
-                    <SelectItem value="Vendedor">Vendedor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">Cadastro real com acesso será conectado na implantação.</p>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setOpen(false)} className="h-9 px-3 rounded-md bg-bg-tertiary text-sm">Cancelar</button>
-            <button onClick={handleSave} className="h-9 px-3 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium">Salvar</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </>
+      )}
     </div>
+  );
+}
+
+// ====== Integrações ======
+
+function StatusOrb({ ok, texto }: { ok: boolean; texto: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2 text-xs">
+      <span
+        className="inline-block size-2 rounded-full"
+        style={{ backgroundColor: ok ? "var(--success)" : HEAT[0] }}
+        aria-hidden
+      />
+      <span className={ok ? "text-success" : "text-muted-foreground"}>{texto}</span>
+    </span>
+  );
+}
+
+const INTEGRACOES: { nome: string; desc: string; ok: boolean; status: string }[] = [
+  {
+    nome: "Supabase",
+    desc: "Banco de dados, autenticação e realtime do CRM.",
+    ok: true,
+    status: "Conectado",
+  },
+  {
+    nome: "Google Maps Places",
+    desc: "Captação de leads por busca geográfica de empresas.",
+    ok: false,
+    status: "Chave não configurada",
+  },
+  {
+    nome: "WAHA WhatsApp",
+    desc: "Sessão de WhatsApp para abordagem automática da IA.",
+    ok: false,
+    status: "Não configurado",
+  },
+  {
+    nome: "Receita Federal",
+    desc: "Enriquecimento cadastral via ETL local de dados públicos do CNPJ.",
+    ok: false,
+    status: "ETL local",
+  },
+];
+
+function IntegracoesTab() {
+  return (
+    <div className="max-w-2xl rounded-lg border border-border bg-bg-secondary hairline-top">
+      {INTEGRACOES.map((i, idx) => (
+        <div
+          key={i.nome}
+          className={`flex items-center justify-between gap-4 px-5 py-4 ${idx > 0 ? "hairline-top" : ""}`}
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{i.nome}</p>
+            <p className="truncate text-xs text-muted-foreground">{i.desc}</p>
+          </div>
+          <StatusOrb ok={i.ok} texto={i.status} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ====== Página ======
+
+function ConfigPage() {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="mx-auto w-full max-w-[1400px] space-y-6 overflow-x-hidden">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+        </div>
+
+        <Tabs defaultValue="usuarios">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 sm:inline-flex sm:h-9 sm:w-auto sm:gap-0">
+            <TabsTrigger value="usuarios" className="w-full whitespace-normal sm:whitespace-nowrap">
+              Usuários
+            </TabsTrigger>
+            <TabsTrigger value="score" className="w-full whitespace-normal sm:whitespace-nowrap">
+              Score
+            </TabsTrigger>
+            <TabsTrigger value="integracoes" className="w-full whitespace-normal sm:whitespace-nowrap">
+              Integrações
+            </TabsTrigger>
+            <TabsTrigger value="empresa" className="w-full whitespace-normal sm:whitespace-nowrap">
+              Empresa
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="usuarios" className="mt-4">
+            <UsuariosTab />
+          </TabsContent>
+
+          <TabsContent value="score" className="mt-4">
+            <ScoreStudio />
+          </TabsContent>
+
+          <TabsContent value="integracoes" className="mt-4">
+            <IntegracoesTab />
+          </TabsContent>
+
+          <TabsContent value="empresa" className="mt-4">
+            <div className="max-w-xl">
+              <EmptyState
+                icon={Building2}
+                title="Dados da empresa (em breve)"
+                description="Razão social, CNPJ, fuso horário e logo ainda não têm persistência no banco — este painel será habilitado quando a tabela existir."
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </TooltipProvider>
   );
 }

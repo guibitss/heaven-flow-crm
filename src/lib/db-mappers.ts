@@ -34,6 +34,11 @@ export function mapLeadFromDb(r: any): Lead {
     valor_estimado: r.valor_estimado ? Number(r.valor_estimado) : undefined,
     bling_cliente_id: r.bling_cliente_id ?? undefined,
     // extra (not in original type but we'll cast)
+    fonte_raw: r.fonte,
+    ...(r.fonte_ref && { fonte_ref: r.fonte_ref }),
+    ...(r.metadata != null && { metadata: r.metadata }),
+    ...(r.updated_at && { updated_at: r.updated_at }),
+    ...(r.vendedor && { vendedor: r.vendedor }),
     ...(r.handoff_em && { handoff_em: r.handoff_em }),
     ...(r.primeira_resposta_vendedor_em && { primeira_resposta_vendedor_em: r.primeira_resposta_vendedor_em }),
     ...(r.tempo_primeira_resposta_segundos !== null && { tempo_primeira_resposta_segundos: r.tempo_primeira_resposta_segundos }),

@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -52,6 +53,13 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-info: var(--info);
+
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --color-heat-5: var(--heat-5);
+  --color-heat-6: var(--heat-6);
 }
 
 @font-face {
@@ -67,6 +75,16 @@
   --heaven-orange-deep: #D9560B;
   --heaven-rust: #A63005;
   --heaven-gray: #595954;
+
+  /* Rampa térmica — fonte única de cor de estado (frio → quente).
+     Funil, kanban, score, tempo de resposta e prazos derivam DAQUI.
+     Verde/vermelho ficam reservados a sucesso/perigo reais. */
+  --heat-1: #595954;
+  --heat-2: #8C4A1F;
+  --heat-3: #A63005;
+  --heat-4: #D9560B;
+  --heat-5: #F27F1B;
+  --heat-6: #FFA94D;
 
   /* Dark surfaces */
   --background: #0D0D0D;
@@ -114,8 +132,6 @@
   color-scheme: dark;
 }
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
-
 @layer base {
   * {
     border-color: var(--color-border);
@@ -132,6 +148,7 @@
 }
 
 @layer utilities {
+  /* Glow é raríssimo: CTA primário, card do login e danger real. */
   .glow-orange {
     box-shadow: 0 0 24px rgba(242, 127, 27, 0.18);
   }
@@ -151,5 +168,43 @@
   .grain-bg {
     background-image:
       radial-gradient(circle at 50% 0%, rgba(242, 127, 27, 0.04), transparent 60%);
+  }
+
+  /* "Linha energizada" — hairline superior em gradiente, assinatura dos
+     painéis elevados (card do login, cards-instrumento). */
+  .energized-top {
+    position: relative;
+  }
+  .energized-top::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(242, 127, 27, 0.7), transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Hairline padrão de painel (com fallback border-strong p/ monitores ruins). */
+  .hairline-top { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+
+  /* Skeleton shimmer na cor da casa (laranja a 4%). */
+  .shimmer-heaven {
+    background: linear-gradient(
+      100deg,
+      var(--bg-tertiary) 40%,
+      rgba(242, 127, 27, 0.06) 50%,
+      var(--bg-tertiary) 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-heaven 1.6s linear infinite;
+  }
+  @keyframes shimmer-heaven {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer-heaven { animation: none; }
   }
 }

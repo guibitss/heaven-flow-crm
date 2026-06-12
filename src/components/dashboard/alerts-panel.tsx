@@ -1,37 +1,98 @@
-import { AlertTriangle, Users, TrendingDown } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CheckCircle2, Timer } from "lucide-react";
+import { useLeadsAguardando } from "@/hooks/use-crm-data";
+import { useLiveClock } from "@/hooks/use-live-clock";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/common/empty-state";
+import { formatarTempo, corPorTempo, corTempoClass } from "@/lib/format-tempo";
 
-const alerts = [
-  { icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10", titulo: "12 leads qualificados sem ação há +24h", desc: "Risco de esfriarem e perder oportunidade." },
-  { icon: Users, color: "text-info", bg: "bg-info/10", titulo: "Distribuição desbalanceada", desc: "Carlos tem 30 leads em aberto, José apenas 5." },
-  { icon: TrendingDown, color: "text-danger", bg: "bg-danger/10", titulo: "Queda na taxa de resposta", desc: "Google Maps caiu 30% essa semana vs semana anterior." },
-];
+// AlertsPanel — leads transferidos (handoff) ainda sem primeira resposta do
+// vendedor. Contador vivo via relógio compartilhado (tick 30s).
+
+type LeadAguardando = {
+  lead_id: string;
+  razao_social: string;
+  handoff_em: string;
+  segundos_aguardando: number;
+  vendedor_id: string | null;
+  vendedor_nome: string | null;
+  vendedor_avatar: string | null;
+};
 
 export function AlertsPanel() {
+  const { data, isLoading } = useLeadsAguardando();
+  const now = useLiveClock();
+  const items = ((data as LeadAguardando[]) ?? []).slice().sort(
+    (a, b) => new Date(a.handoff_em).getTime() - new Date(b.handoff_em).getTime(),
+  );
+
   return (
-    <div className="bg-bg-secondary border border-border rounded-lg h-[420px] flex flex-col">
-      <div className="px-5 py-4 border-b border-border">
-        <h3 className="text-base font-semibold">Alertas e ações sugeridas</h3>
+    <div className="flex h-[420px] flex-col rounded-lg border border-border bg-bg-secondary">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <h3 className="text-base font-semibold">Aguardando resposta</h3>
+        {items.length > 0 && (
+          <span className="label-xs font-mono">
+            {items.length} pendente{items.length > 1 ? "s" : ""}
+          </span>
+        )}
       </div>
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-        {alerts.map((a, i) => {
-          const Icon = a.icon;
-          return (
-            <div key={i} className="border border-border rounded-md p-4 hover:border-border-strong transition-colors">
-              <div className="flex items-start gap-3">
-                <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${a.bg}`}>
-                  <Icon className={`h-4 w-4 ${a.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium leading-snug">{a.titulo}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{a.desc}</div>
-                  <button className="mt-3 text-xs font-medium text-heaven-orange hover:text-heaven-orange-deep">
-                    Resolver →
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex-1 overflow-y-auto p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="shimmer-heaven h-12 w-full" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="Nenhum lead aguardando"
+            description="Todos os leads transferidos já receberam a primeira resposta."
+            className="h-full border-0"
+          />
+        ) : (
+          <ul className="space-y-1">
+            {items.map((l) => {
+              const segundos = Math.max(
+                0,
+                Math.floor((now - new Date(l.handoff_em).getTime()) / 1000),
+              );
+              const cor = corPorTempo(segundos);
+              return (
+                <li key={l.lead_id}>
+                  <Link
+                    to="/crm/$id"
+                    params={{ id: l.lead_id }}
+                    className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-bg-tertiary/60"
+                    aria-label={`Abrir lead ${l.razao_social}, aguardando há ${formatarTempo(segundos)}`}
+                  >
+                    <div className="size-8 shrink-0 overflow-hidden rounded-full border border-border bg-bg-tertiary">
+                      {l.vendedor_avatar && (
+                        <img
+                          src={l.vendedor_avatar}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{l.razao_social}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {l.vendedor_nome ?? "Sem vendedor"}
+                      </div>
+                    </div>
+                    <span
+                      className={`flex shrink-0 items-center gap-1 font-mono text-xs font-semibold ${corTempoClass(cor)}`}
+                    >
+                      <Timer className="size-3" aria-hidden />
+                      {formatarTempo(segundos)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -1,273 +1,247 @@
+import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { X, Download, Edit, ChevronDown, FileText, Shield } from "lucide-react";
-import { format } from "date-fns";
-
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useLeadDetail } from "@/hooks/use-crm-data";
-import { mapLeadFromDb } from "@/lib/db-mappers";
-import { fonteLabels, statusLabels } from "@/lib/mock-data";
-import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, X } from "lucide-react";
 import { toast } from "sonner";
-import { TempoIndicador } from "@/components/crm/tempo-indicador";
+import { supabase } from "@/integrations/supabase/client";
+import { useLeadDetail, useUpdateLeadStatus, useVendedores } from "@/hooks/use-crm-data";
+import {
+  STATUS_HEAT, STATUS_LABEL, PIPELINE_ORDER, TEMPERATURA_LABEL, corPorTemperatura,
+  type LeadStatus, type Temperatura,
+} from "@/lib/heat";
+import { cn } from "@/lib/utils";
+import { ScoreRing } from "@/components/common/score-ring";
+import { PulseFlash } from "@/components/common/pulse-flash";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PipelineProgress } from "@/components/crm/pipeline-progress";
+import { DadosTab } from "@/components/crm/dados-tab";
+import { ConversaTab } from "@/components/crm/conversa-tab";
+import { TimelineTab } from "@/components/crm/timeline-tab";
+import { NotasTab } from "@/components/crm/notas-tab";
+import { FONTE_LABEL, iniciais } from "@/components/crm/crm-shared";
 
 export const Route = createFileRoute("/_app/crm/$id")({
-  component: LeadDetail,
+  component: LeadDossie,
 });
 
-function LeadDetail() {
+const ABAS = ["dados", "conversa", "timeline", "notas"] as const;
+type Aba = (typeof ABAS)[number];
+
+const ABA_LABEL: Record<Aba, string> = {
+  dados: "Dados",
+  conversa: "Conversa",
+  timeline: "Timeline",
+  notas: "Notas",
+};
+
+function LeadDossie() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data: raw, isLoading, error } = useLeadDetail(id);
+  const { data: vendedoresData = [] } = useVendedores();
+  const updateStatus = useUpdateLeadStatus();
+  const [aba, setAba] = useState<Aba>("dados");
+
+  const vendedores = vendedoresData as { id: string; nome: string; avatar_url: string | null }[];
 
   function close() { navigate({ to: "/crm" }); }
 
-  const lead = useMemo(() => (raw ? mapLeadFromDb(raw) : null), [raw]);
-  const vendedor = (raw as any)?.vendedor ?? null;
-  const mensagens = ((raw as any)?.mensagens ?? []) as any[];
-  const notas = ((raw as any)?.notas ?? []) as any[];
-  const anexos = ((raw as any)?.anexos ?? []) as any[];
-  const tags = (((raw as any)?.lead_tags ?? []) as any[]).map((lt) => lt.tag).filter(Boolean);
-
-  const consentimentos = useQuery({
-    queryKey: ["lead_consentimentos", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lead_consentimentos")
-        .select("*")
-        .eq("lead_id", id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+  const atribuir = useMutation({
+    mutationFn: async (vendedorId: string) => {
+      const { error: err } = await supabase.from("leads").update({ vendedor_id: vendedorId } as never).eq("id", id);
+      if (err) throw err;
     },
-    enabled: !!id,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Vendedor atribuído");
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao atribuir vendedor"),
   });
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={close}>
-        <div className="bg-bg-secondary p-8 rounded-lg text-sm text-muted-foreground">Carregando...</div>
-      </div>
+      <Overlay onClose={close}>
+        <div className="space-y-4 p-6">
+          <Skeleton className="h-10 w-2/3 shimmer-heaven" />
+          <Skeleton className="h-4 w-1/3 shimmer-heaven" />
+          <Skeleton className="h-40 w-full shimmer-heaven" />
+        </div>
+      </Overlay>
     );
   }
 
-  if (error || !lead) {
+  if (error || !raw) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={close}>
-        <div className="bg-bg-secondary p-8 rounded-lg">Lead não encontrado</div>
-      </div>
+      <Overlay onClose={close}>
+        <div className="p-8 text-sm text-muted-foreground">Lead não encontrado.</div>
+      </Overlay>
     );
   }
+
+  const lead = raw as Record<string, unknown>;
+  const temperatura = (lead.temperatura ?? "frio") as Temperatura;
+  const status = lead.status as LeadStatus;
+  const vendedor = lead.vendedor as { id: string; nome: string; avatar_url: string | null } | null;
+  const tempCor = corPorTemperatura(temperatura);
+  const fonte = String(lead.fonte ?? "");
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 animate-in fade-in" onClick={close}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-bg-secondary border border-border rounded-lg w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95"
-      >
-        <header className="flex items-start justify-between p-6 border-b border-border">
-          <div>
-            <h1 className="text-2xl font-bold">{lead.razao_social}</h1>
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {tags.map((t: any) => (
-                <span key={t.id} className="text-xs px-2 py-0.5 rounded bg-heaven-rust/20 text-heaven-orange border border-heaven-rust/40" style={t.cor ? { color: t.cor, borderColor: t.cor } : undefined}>{t.nome}</span>
-              ))}
-              <span className="text-xs px-2 py-0.5 rounded bg-bg-tertiary border border-border">{statusLabels[lead.status]}</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-bg-tertiary border border-border">{fonteLabels[lead.fonte]}</span>
-              <span className={cn(
-                "text-xs px-2 py-0.5 rounded border font-medium",
-                lead.temperatura === "quente" && "bg-heaven-orange/15 text-heaven-orange border-heaven-orange/40",
-                lead.temperatura === "morno" && "bg-yellow-500/15 text-yellow-500 border-yellow-500/40",
-                lead.temperatura === "frio" && "bg-heaven-gray/15 text-muted-foreground border-heaven-gray/40",
-              )}>
-                {lead.temperatura === "quente" ? "🔥 Quente" : lead.temperatura === "morno" ? "🌡️ Morno" : "❄️ Frio"} · {lead.score}
-              </span>
+    <Overlay onClose={close}>
+      {/* faixa superior 2px na cor da temperatura */}
+      <div className="h-0.5 shrink-0" style={{ backgroundColor: tempCor }} aria-hidden />
+
+      <header className="border-b border-border p-6 pb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            <ScoreRing score={lead.score as number | null} size={40} />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-2xl font-bold leading-tight">{String(lead.razao_social)}</h1>
+                <span className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-bg-tertiary px-2 py-0.5 text-[10px] font-medium tracking-wide">
+                  <span className="size-1.5 rounded-full" style={{ backgroundColor: tempCor }} aria-hidden />
+                  {TEMPERATURA_LABEL[temperatura]}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 font-mono tabular-nums text-xs text-muted-foreground">
+                {lead.cnpj ? <span>{String(lead.cnpj)}</span> : null}
+                <span>{FONTE_LABEL[fonte] ?? fonte}</span>
+                {lead.fonte_ref ? <span className="truncate">{String(lead.fonte_ref)}</span> : null}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => toast("Modo de edição")} className="h-9 px-3 rounded-md bg-bg-tertiary hover:bg-bg-tertiary/70 text-sm flex items-center gap-1.5"><Edit className="h-4 w-4" />Editar</button>
-            <button className="h-9 px-3 rounded-md bg-bg-tertiary hover:bg-bg-tertiary/70 text-sm flex items-center gap-1.5">Mover etapa <ChevronDown className="h-4 w-4" /></button>
-            <button className="h-9 px-3 rounded-md bg-heaven-orange hover:bg-heaven-orange-deep text-primary-foreground text-sm flex items-center gap-1.5 font-medium">Atribuir <ChevronDown className="h-4 w-4" /></button>
-            <button onClick={close} className="h-9 w-9 rounded-md bg-bg-tertiary hover:bg-bg-tertiary/70 flex items-center justify-center ml-2"><X className="h-4 w-4" /></button>
-          </div>
-        </header>
 
-        <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="mx-6 mt-4 self-start">
-            <TabsTrigger value="dados">Dados</TabsTrigger>
-            <TabsTrigger value="conversa">Conversa</TabsTrigger>
-            <TabsTrigger value="notas">Notas</TabsTrigger>
-            <TabsTrigger value="anexos">Anexos</TabsTrigger>
-            <TabsTrigger value="bling">Bling</TabsTrigger>
-            <TabsTrigger value="lgpd">LGPD</TabsTrigger>
-          </TabsList>
-
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            <TabsContent value="dados" className="mt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Razão Social" value={lead.razao_social} />
-              <Field label="CNPJ" value={lead.cnpj} mono />
-              <Field label="Telefone" value={lead.telefone || "—"} mono />
-              <Field label="Site" value={lead.site ?? "—"} />
-              <Field label="CNAE" value={lead.cnae ? `${lead.cnae} — ${lead.cnae_descricao}` : "—"} />
-              <Field label="Porte" value={lead.porte} />
-              <Field label="Capital social" value={`R$ ${lead.capital_social.toLocaleString("pt-BR")}`} mono />
-              <Field label="Endereço" value={`${lead.endereco.logradouro}, ${lead.endereco.cidade}/${lead.endereco.uf} — ${lead.endereco.cep}`} />
-              <div className="md:col-span-2 border-t border-border pt-4 mt-2">
-                <h3 className="text-sm font-semibold mb-3">Decisor</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Nome" value={lead.decisor.nome || "—"} />
-                  <Field label="Cargo" value={lead.decisor.cargo || "—"} />
-                  <Field label="Telefone" value={lead.decisor.telefone || "—"} mono />
-                  <Field label="Email" value={lead.decisor.email ?? "—"} />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="conversa" className="mt-0 flex flex-col h-full">
-              {vendedor && (
-                <div className="text-xs text-muted-foreground bg-bg-tertiary border border-border rounded-md px-3 py-2 mb-4 flex items-center justify-between gap-3 flex-wrap">
-                  <span>Atribuído a <span className="text-heaven-orange font-medium">{vendedor.nome}</span></span>
-                  <TempoIndicador
-                    handoffEm={(raw as any)?.handoff_em ?? null}
-                    primeiraRespostaEm={(raw as any)?.primeira_resposta_vendedor_em ?? null}
-                    tempoSegundos={(raw as any)?.tempo_primeira_resposta_segundos ?? null}
-                  />
-                </div>
-              )}
-
-              <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-                {mensagens.length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-8 text-center">Sem mensagens ainda</div>
-                ) : mensagens.map((m: any) => {
-                  const ownerRight = m.autor === "lead";
-                  return (
-                    <div key={m.id} className={cn("flex", ownerRight && "justify-end")}>
-                      <div className={cn(
-                        "max-w-[70%] rounded-lg px-4 py-2 text-sm",
-                        m.autor === "ia" && "bg-bg-tertiary text-foreground",
-                        m.autor === "vendedor" && "bg-heaven-orange/20 border border-heaven-orange/40 text-foreground",
-                        m.autor === "lead" && "bg-foreground text-background",
-                      )}>
-                        {m.autor !== "lead" && <div className="text-[10px] font-semibold mb-1 opacity-70">{m.autor === "ia" ? "IA" : "Vendedor"}</div>}
-                        <div className="leading-snug">{m.conteudo}</div>
-                        <div className={cn("text-[10px] mt-1 font-mono", m.autor === "lead" ? "text-background/60" : "text-muted-foreground")}>
-                          {format(new Date(m.enviada_em ?? m.created_at), "HH:mm")}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); toast.success("Mensagem enviada"); }} className="mt-4 flex gap-2">
-                <input className="flex-1 h-10 px-3 rounded-md bg-bg-tertiary border border-border text-sm" placeholder="Digite uma mensagem..." />
-                <button className="h-10 px-4 rounded-md bg-heaven-orange text-primary-foreground font-medium text-sm">Enviar</button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="notas" className="mt-0 space-y-4">
-              <div>
-                <textarea className="w-full h-24 p-3 rounded-md bg-bg-tertiary border border-border text-sm resize-none" placeholder="Adicionar uma nota..." />
-                <button onClick={() => toast.success("Nota salva")} className="mt-2 h-9 px-4 rounded-md bg-heaven-orange text-primary-foreground text-sm font-medium">Salvar nota</button>
-              </div>
-              <div className="space-y-3">
-                {notas.length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-6 text-center">Nenhuma nota</div>
-                ) : notas.map((n: any) => (
-                  <div key={n.id} className="bg-bg-tertiary border border-border rounded-md p-3">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span className="font-medium text-foreground">{n.autor?.nome ?? "—"}</span>
-                      <span className="font-mono">{format(new Date(n.created_at), "dd/MM HH:mm")}</span>
-                    </div>
-                    <p className="text-sm">{n.conteudo}</p>
-                  </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex h-9 items-center gap-1.5 rounded-md bg-bg-tertiary px-3 text-sm hover:bg-bg-tertiary/70">
+                Mover etapa <ChevronDown className="h-4 w-4" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-bg-secondary">
+                {[...PIPELINE_ORDER, "perdido" as LeadStatus].map((s) => (
+                  <DropdownMenuItem
+                    key={s}
+                    disabled={s === status}
+                    onClick={() => updateStatus.mutate({ id, status: s })}
+                    className="gap-2"
+                  >
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: STATUS_HEAT[s] }} aria-hidden />
+                    {STATUS_LABEL[s]}
+                    {s === status && <span className="label-xs ml-auto">atual</span>}
+                  </DropdownMenuItem>
                 ))}
-              </div>
-            </TabsContent>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <TabsContent value="anexos" className="mt-0 grid grid-cols-2 md:grid-cols-3 gap-3">
-              {anexos.length === 0 ? (
-                <div className="col-span-full text-sm text-muted-foreground py-6 text-center">Nenhum anexo</div>
-              ) : anexos.map((a: any) => (
-                <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="bg-bg-tertiary border border-border rounded-md p-4 flex items-center gap-3 hover:border-border-strong">
-                  <div className="h-10 w-10 rounded bg-heaven-orange/15 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-heaven-orange" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate font-medium">{a.nome}</div>
-                    <div className="text-xs text-muted-foreground">{a.tamanho_bytes ? `${(Number(a.tamanho_bytes) / 1024 / 1024).toFixed(1)} MB` : ""}</div>
-                  </div>
-                  <Download className="h-4 w-4 text-muted-foreground" />
-                </a>
-              ))}
-            </TabsContent>
+            <PulseFlash pulseKey={String(lead.vendedor_id ?? "sem")} className="rounded-md">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex h-9 items-center gap-1.5 rounded-md bg-bg-tertiary px-3 text-sm hover:bg-bg-tertiary/70">
+                {vendedor ? (
+                  <>
+                    <Avatar className="size-5">
+                      {vendedor.avatar_url && <AvatarImage src={vendedor.avatar_url} alt="" />}
+                      <AvatarFallback className="text-[9px] bg-bg-secondary">{iniciais(vendedor.nome)}</AvatarFallback>
+                    </Avatar>
+                    <span className="max-w-32 truncate">{vendedor.nome}</span>
+                  </>
+                ) : (
+                  "Atribuir"
+                )}
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-bg-secondary">
+                {vendedores.length === 0 ? (
+                  <DropdownMenuItem disabled>Nenhum vendedor ativo</DropdownMenuItem>
+                ) : vendedores.map((v) => (
+                  <DropdownMenuItem
+                    key={v.id}
+                    disabled={v.id === lead.vendedor_id}
+                    onClick={() => atribuir.mutate(v.id)}
+                    className="gap-2"
+                  >
+                    <Avatar className="size-5">
+                      {v.avatar_url && <AvatarImage src={v.avatar_url} alt="" />}
+                      <AvatarFallback className="text-[9px] bg-bg-tertiary">{iniciais(v.nome)}</AvatarFallback>
+                    </Avatar>
+                    {v.nome}
+                    {v.id === lead.vendedor_id && <span className="label-xs ml-auto">atual</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            </PulseFlash>
 
-            <TabsContent value="bling" className="mt-0">
-              {lead.bling_cliente_id ? (
-                <div className="text-sm text-muted-foreground py-12 text-center">
-                  Cliente Bling: <span className="font-mono text-foreground">{lead.bling_cliente_id}</span>
-                </div>
-              ) : (
-                <div className="text-center py-16 text-muted-foreground text-sm">
-                  Este lead ainda não é cliente no Bling.
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="lgpd" className="mt-0 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Shield className="h-4 w-4 text-heaven-orange" /> Consentimentos do lead
-              </div>
-              {consentimentos.isLoading ? (
-                <div className="text-sm text-muted-foreground py-6 text-center">Carregando…</div>
-              ) : !consentimentos.data || consentimentos.data.length === 0 ? (
-                <div className="text-sm text-muted-foreground py-6 text-center">
-                  Nenhum consentimento registrado para este lead.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {consentimentos.data.map((c: any) => (
-                    <div key={c.id} className="bg-bg-tertiary border border-border rounded-md p-3 flex items-center justify-between gap-3 flex-wrap">
-                      <div className="text-sm">
-                        <div className="font-medium">
-                          {c.opt_out ? "Opt-out" : "Consentimento ativo"}
-                          {c.origem ? <span className="text-muted-foreground font-normal"> · {c.origem}</span> : null}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono mt-0.5">
-                          {c.consentimento_em && `consentido em ${format(new Date(c.consentimento_em), "dd/MM/yyyy HH:mm")}`}
-                          {c.opt_out_em && ` · opt-out em ${format(new Date(c.opt_out_em), "dd/MM/yyyy HH:mm")}`}
-                        </div>
-                      </div>
-                      <span
-                        className={cn(
-                          "text-xs px-2 py-0.5 rounded border",
-                          c.opt_out
-                            ? "bg-danger/15 text-danger border-danger/40"
-                            : "bg-success/15 text-success border-success/40",
-                        )}
-                      >
-                        {c.opt_out ? "Revogado" : "Ativo"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+            <button
+              onClick={close}
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-bg-tertiary hover:bg-bg-tertiary/70"
+              aria-label="Fechar dossiê"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
           </div>
-        </Tabs>
+        </div>
+
+        <div className="mt-5">
+          <PipelineProgress status={status} />
+        </div>
+      </header>
+
+      {/* abas tipográficas — underline laranja 2px, sem pills */}
+      <nav className="flex gap-6 border-b border-border px-6" role="tablist" aria-label="Seções do dossiê">
+        {ABAS.map((a) => (
+          <button
+            key={a}
+            role="tab"
+            aria-selected={aba === a}
+            onClick={() => setAba(a)}
+            className={cn(
+              "relative py-3 text-sm font-medium transition-colors",
+              aba === a ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {ABA_LABEL[a]}
+            {aba === a && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-heaven-orange" aria-hidden />
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {aba === "dados" && <DadosTab raw={lead} />}
+        {aba === "conversa" && (
+          <ConversaTab
+            leadId={id}
+            handoffEm={(lead.handoff_em as string | null) ?? null}
+            tempoPrimeiraRespostaSegundos={(lead.tempo_primeira_resposta_segundos as number | null) ?? null}
+          />
+        )}
+        {aba === "timeline" && <TimelineTab leadId={id} />}
+        {aba === "notas" && <NotasTab leadId={id} />}
       </div>
-    </div>
+    </Overlay>
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div>
-      <div className="label-xs mb-1">{label}</div>
-      <div className={cn("text-sm", mono && "font-mono")}>{value}</div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-bg-secondary animate-in zoom-in-95"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dossiê do lead"
+      >
+        {children}
+      </div>
     </div>
   );
 }

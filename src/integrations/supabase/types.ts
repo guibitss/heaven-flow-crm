@@ -105,6 +105,7 @@ export type Database = {
           id: number
           receita_ativo: boolean | null
           receita_config: Json | null
+          score_config: Json
           updated_at: string | null
         }
         Insert: {
@@ -114,6 +115,7 @@ export type Database = {
           id?: number
           receita_ativo?: boolean | null
           receita_config?: Json | null
+          score_config?: Json
           updated_at?: string | null
         }
         Update: {
@@ -123,6 +125,7 @@ export type Database = {
           id?: number
           receita_ativo?: boolean | null
           receita_config?: Json | null
+          score_config?: Json
           updated_at?: string | null
         }
         Relationships: []
@@ -280,7 +283,7 @@ export type Database = {
           capital_social: number | null
           cnae: string | null
           cnae_descricao: string | null
-          cnpj: string
+          cnpj: string | null
           created_at: string | null
           criado_em: string | null
           decisor_cargo: string | null
@@ -292,8 +295,10 @@ export type Database = {
           endereco_logradouro: string | null
           endereco_uf: string | null
           fonte: Database["public"]["Enums"]["lead_fonte"]
+          fonte_ref: string | null
           handoff_em: string | null
           id: string
+          metadata: Json
           porte: Database["public"]["Enums"]["lead_porte"] | null
           primeira_resposta_vendedor_em: string | null
           razao_social: string
@@ -313,7 +318,7 @@ export type Database = {
           capital_social?: number | null
           cnae?: string | null
           cnae_descricao?: string | null
-          cnpj: string
+          cnpj?: string | null
           created_at?: string | null
           criado_em?: string | null
           decisor_cargo?: string | null
@@ -325,8 +330,10 @@ export type Database = {
           endereco_logradouro?: string | null
           endereco_uf?: string | null
           fonte: Database["public"]["Enums"]["lead_fonte"]
+          fonte_ref?: string | null
           handoff_em?: string | null
           id?: string
+          metadata?: Json
           porte?: Database["public"]["Enums"]["lead_porte"] | null
           primeira_resposta_vendedor_em?: string | null
           razao_social: string
@@ -346,7 +353,7 @@ export type Database = {
           capital_social?: number | null
           cnae?: string | null
           cnae_descricao?: string | null
-          cnpj?: string
+          cnpj?: string | null
           created_at?: string | null
           criado_em?: string | null
           decisor_cargo?: string | null
@@ -358,8 +365,10 @@ export type Database = {
           endereco_logradouro?: string | null
           endereco_uf?: string | null
           fonte?: Database["public"]["Enums"]["lead_fonte"]
+          fonte_ref?: string | null
           handoff_em?: string | null
           id?: string
+          metadata?: Json
           porte?: Database["public"]["Enums"]["lead_porte"] | null
           primeira_resposta_vendedor_em?: string | null
           razao_social?: string
@@ -635,6 +644,7 @@ export type Database = {
           total: number
         }[]
       }
+      get_kpis_vendedor: { Args: { _vendedor: string }; Returns: Json }
       get_leads_aguardando_resposta: {
         Args: never
         Returns: {
@@ -647,6 +657,16 @@ export type Database = {
           vendedor_nome: string
         }[]
       }
+      get_leads_por_uf: {
+        Args: { periodo_dias?: number }
+        Returns: {
+          qualificados: number
+          quentes: number
+          score_medio: number
+          total: number
+          uf: string
+        }[]
+      }
       get_ranking_velocidade_vendedores: {
         Args: { periodo_dias?: number }
         Returns: {
@@ -656,6 +676,13 @@ export type Database = {
           tempo_medio_segundos: number
           total_respostas: number
           vendedor_id: string
+        }[]
+      }
+      get_serie_captacao: {
+        Args: { dias?: number }
+        Returns: {
+          dia: string
+          total: number
         }[]
       }
       get_user_role: {
