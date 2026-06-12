@@ -198,13 +198,19 @@ export const statusLabels: Record<LeadStatus, string> = {
 export const fonteLabels: Record<LeadFonte, string> = {
   google_maps: "Google Maps",
   receita_federal: "Receita Federal",
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
   indicacao: "Indicação",
+  manual: "Manual",
 };
 
 export const fonteCores: Record<LeadFonte, string> = {
   google_maps: "bg-info/15 text-info border-info/30",
   receita_federal: "bg-heaven-orange/15 text-heaven-orange border-heaven-orange/30",
+  instagram: "bg-heaven-rust/15 text-heaven-orange border-heaven-rust/30",
+  linkedin: "bg-info/15 text-info border-info/30",
   indicacao: "bg-success/15 text-success border-success/30",
+  manual: "bg-muted text-muted-foreground border-border",
 };
 
 export const statusCores: Record<LeadStatus, string> = {

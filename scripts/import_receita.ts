@@ -22,6 +22,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { parseArgs } from "jsr:@std/cli/parse-args";
 import { looksSolar } from "../supabase/functions/_shared/solar.ts";
+import { formatCnae } from "../supabase/functions/_shared/cnae.ts";
 
 // CNAEs-alvo padrão (somente dígitos, 7 chars). REVISAR com o público da Heaven.
 const DEFAULT_CNAES = [
@@ -97,7 +98,9 @@ function leadFromFields(f: string[]) {
     fonte: "receita_federal" as const,
     cnpj,
     razao_social: nomeFantasia || `CNPJ ${cnpj}`,
-    cnae: onlyDigits(f[11] ?? "") || null,
+    // CNAE FORMATADO ('43.21-5/00') — o score nativo do banco compara prefixo
+    // pontuado; dígitos puros zerariam o peso de CNAE. Dígitos vão no metadata.
+    cnae: formatCnae(f[11] ?? "") || null,
     endereco_logradouro: logradouro || null,
     endereco_cidade: null, // só temos o código IBGE do município (vai no metadata)
     endereco_uf: (f[19] ?? "") || null,
@@ -106,6 +109,7 @@ function leadFromFields(f: string[]) {
     decisor_email: ((f[27] ?? "").toLowerCase()) || null,
     metadata: {
       nome_fantasia: nomeFantasia || null,
+      cnae_digits: onlyDigits(f[11] ?? "") || null,
       cnae_secundaria: f[12] ?? null,
       municipio_codigo: f[20] ?? null,
       data_inicio_atividade: f[10] ?? null,

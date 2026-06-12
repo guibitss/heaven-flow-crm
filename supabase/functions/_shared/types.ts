@@ -11,11 +11,11 @@ export type LeadStatus =
   | "ganho"
   | "perdido";
 
-// Atenção: o enum lead_fonte NÃO contempla instagram/linkedin. Esses canais
-// exigiriam estender o enum + configuracoes_captacao antes de virarem fonte.
 export type LeadFonte =
   | "google_maps"
   | "receita_federal"
+  | "instagram"
+  | "linkedin"
   | "indicacao"
   | "manual";
 

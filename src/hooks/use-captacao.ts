@@ -81,6 +81,49 @@ export function parseMapsConfig(json: unknown): GoogleMapsConfig {
   };
 }
 
+export interface InstagramConfig {
+  /** 'graph' (grátis, enriquece) | 'apify' (pago, descobre por hashtag). */
+  provider: "graph" | "apify";
+  hashtags: string[];
+  handles: string[];
+}
+
+export interface LinkedInConfig {
+  /** Opt-in de risco — scraping viola o ToS e pode bloquear contas. */
+  habilitado_risco: boolean;
+  queries: string[];
+}
+
+export const DEFAULT_INSTAGRAM_CONFIG: InstagramConfig = {
+  provider: "graph",
+  hashtags: ["energiasolar", "energiafotovoltaica", "integradorsolar"],
+  handles: [],
+};
+
+export const DEFAULT_LINKEDIN_CONFIG: LinkedInConfig = {
+  habilitado_risco: false,
+  queries: ["energia solar", "integradora solar", "energia fotovoltaica"],
+};
+
+export function parseInstagramConfig(json: unknown): InstagramConfig {
+  const j = (json ?? {}) as Partial<InstagramConfig>;
+  return {
+    provider: j.provider === "apify" ? "apify" : "graph",
+    hashtags: Array.isArray(j.hashtags) ? j.hashtags : DEFAULT_INSTAGRAM_CONFIG.hashtags,
+    handles: Array.isArray(j.handles) ? j.handles : [],
+  };
+}
+
+export function parseLinkedInConfig(json: unknown): LinkedInConfig {
+  const j = (json ?? {}) as Partial<LinkedInConfig>;
+  return {
+    habilitado_risco: j.habilitado_risco === true,
+    queries: Array.isArray(j.queries) && j.queries.length > 0
+      ? j.queries
+      : DEFAULT_LINKEDIN_CONFIG.queries,
+  };
+}
+
 const CONFIG_KEY = ["captacao-config"];
 const EXECUCOES_KEY = ["captacao-execucoes"];
 const CAPTADOS_HOJE_KEY = ["captacao-captados-hoje"];

@@ -103,6 +103,10 @@ export type Database = {
           google_maps_ativo: boolean | null
           google_maps_config: Json | null
           id: number
+          instagram_ativo: boolean
+          instagram_config: Json
+          linkedin_ativo: boolean
+          linkedin_config: Json
           receita_ativo: boolean | null
           receita_config: Json | null
           score_config: Json
@@ -113,6 +117,10 @@ export type Database = {
           google_maps_ativo?: boolean | null
           google_maps_config?: Json | null
           id?: number
+          instagram_ativo?: boolean
+          instagram_config?: Json
+          linkedin_ativo?: boolean
+          linkedin_config?: Json
           receita_ativo?: boolean | null
           receita_config?: Json | null
           score_config?: Json
@@ -123,6 +131,10 @@ export type Database = {
           google_maps_ativo?: boolean | null
           google_maps_config?: Json | null
           id?: number
+          instagram_ativo?: boolean
+          instagram_config?: Json
+          linkedin_ativo?: boolean
+          linkedin_config?: Json
           receita_ativo?: boolean | null
           receita_config?: Json | null
           score_config?: Json
@@ -701,7 +713,13 @@ export type Database = {
         | "venda"
         | "alerta"
         | "status_change"
-      lead_fonte: "google_maps" | "receita_federal" | "indicacao" | "manual"
+      lead_fonte:
+        | "google_maps"
+        | "receita_federal"
+        | "indicacao"
+        | "manual"
+        | "instagram"
+        | "linkedin"
       lead_porte: "ME" | "EPP" | "MEDIA" | "GRANDE"
       lead_status:
         | "bruto"
@@ -853,7 +871,14 @@ export const Constants = {
         "alerta",
         "status_change",
       ],
-      lead_fonte: ["google_maps", "receita_federal", "indicacao", "manual"],
+      lead_fonte: [
+        "google_maps",
+        "receita_federal",
+        "indicacao",
+        "manual",
+        "instagram",
+        "linkedin",
+      ],
       lead_porte: ["ME", "EPP", "MEDIA", "GRANDE"],
       lead_status: [
         "bruto",

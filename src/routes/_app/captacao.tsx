@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  AtSign,
+  Briefcase,
   Building2,
   Loader2,
   MapPin,
@@ -25,8 +28,12 @@ import { DirtyStateBar } from "@/components/common/dirty-state-bar";
 import { EmptyState } from "@/components/common/empty-state";
 import { heatColor } from "@/lib/heat";
 import {
+  DEFAULT_INSTAGRAM_CONFIG,
+  DEFAULT_LINKEDIN_CONFIG,
   DEFAULT_MAPS_CONFIG,
   DEFAULT_RECEITA_CONFIG,
+  parseInstagramConfig,
+  parseLinkedInConfig,
   parseMapsConfig,
   parseReceitaConfig,
   useCaptacaoConfig,
@@ -35,6 +42,8 @@ import {
   useSalvarCaptacao,
   useUltimaCaptacao,
   type GoogleMapsConfig,
+  type InstagramConfig,
+  type LinkedInConfig,
   type ReceitaConfig,
 } from "@/hooks/use-captacao";
 
@@ -64,6 +73,8 @@ function CaptacaoPage() {
   // Drafts dos jsonbs (DirtyStateBar). Switches persistem imediato, fora daqui.
   const [receita, setReceita] = useState<ReceitaConfig>(DEFAULT_RECEITA_CONFIG);
   const [maps, setMaps] = useState<GoogleMapsConfig>(DEFAULT_MAPS_CONFIG);
+  const [insta, setInsta] = useState<InstagramConfig>(DEFAULT_INSTAGRAM_CONFIG);
+  const [linkedin, setLinkedin] = useState<LinkedInConfig>(DEFAULT_LINKEDIN_CONFIG);
   const [initialized, setInitialized] = useState(false);
 
   const savedReceita = useMemo(
@@ -74,25 +85,39 @@ function CaptacaoPage() {
     () => parseMapsConfig(cfg?.google_maps_config),
     [cfg?.google_maps_config],
   );
+  const savedInsta = useMemo(
+    () => parseInstagramConfig(cfg?.instagram_config),
+    [cfg?.instagram_config],
+  );
+  const savedLinkedin = useMemo(
+    () => parseLinkedInConfig(cfg?.linkedin_config),
+    [cfg?.linkedin_config],
+  );
 
   useEffect(() => {
     if (cfg !== undefined && !initialized) {
       setReceita(savedReceita);
       setMaps(savedMaps);
+      setInsta(savedInsta);
+      setLinkedin(savedLinkedin);
       setInitialized(true);
     }
-  }, [cfg, initialized, savedReceita, savedMaps]);
+  }, [cfg, initialized, savedReceita, savedMaps, savedInsta, savedLinkedin]);
 
   const dirty =
     initialized &&
     (JSON.stringify(receita) !== JSON.stringify(savedReceita) ||
-      JSON.stringify(maps) !== JSON.stringify(savedMaps));
+      JSON.stringify(maps) !== JSON.stringify(savedMaps) ||
+      JSON.stringify(insta) !== JSON.stringify(savedInsta) ||
+      JSON.stringify(linkedin) !== JSON.stringify(savedLinkedin));
 
   const salvarConfigs = () => {
     salvar.mutate(
       {
         receita_config: JSON.parse(JSON.stringify(receita)),
         google_maps_config: JSON.parse(JSON.stringify(maps)),
+        instagram_config: JSON.parse(JSON.stringify(insta)),
+        linkedin_config: JSON.parse(JSON.stringify(linkedin)),
       },
       { onSuccess: () => toast.success("Configurações de captação salvas") },
     );
@@ -101,11 +126,18 @@ function CaptacaoPage() {
   const descartar = () => {
     setReceita(savedReceita);
     setMaps(savedMaps);
+    setInsta(savedInsta);
+    setLinkedin(savedLinkedin);
   };
 
   // Switches persistem imediato (sem dirty bar).
   const toggleCampo = (
-    campo: "captacao_ativa" | "receita_ativo" | "google_maps_ativo",
+    campo:
+      | "captacao_ativa"
+      | "receita_ativo"
+      | "google_maps_ativo"
+      | "instagram_ativo"
+      | "linkedin_ativo",
     valor: boolean,
     labelOn: string,
     labelOff: string,
@@ -178,6 +210,34 @@ function CaptacaoPage() {
         }
         config={maps}
         onChange={setMaps}
+      />
+
+      <CanalInstagram
+        ativo={cfg?.instagram_ativo ?? false}
+        onToggleAtivo={(v) =>
+          toggleCampo(
+            "instagram_ativo",
+            v,
+            "Canal Instagram ativado",
+            "Canal Instagram desativado",
+          )
+        }
+        config={insta}
+        onChange={setInsta}
+      />
+
+      <CanalLinkedin
+        ativo={cfg?.linkedin_ativo ?? false}
+        onToggleAtivo={(v) =>
+          toggleCampo(
+            "linkedin_ativo",
+            v,
+            "Canal LinkedIn ativado",
+            "Canal LinkedIn desativado",
+          )
+        }
+        config={linkedin}
+        onChange={setLinkedin}
       />
 
       <UltimasExecucoes />
@@ -628,6 +688,216 @@ function CanalGoogleMaps({
             ) : (
               <Play className="size-4" aria-hidden />
             )}
+            {executar.isPending ? "Executando..." : "Executar agora"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------- Canal Instagram
+
+function CanalInstagram({
+  ativo,
+  onToggleAtivo,
+  config,
+  onChange,
+}: {
+  ativo: boolean;
+  onToggleAtivo: (v: boolean) => void;
+  config: InstagramConfig;
+  onChange: (c: InstagramConfig) => void;
+}) {
+  const qc = useQueryClient();
+  const executar = useMutation({
+    mutationFn: async () => {
+      // Graph só enriquece; Apify descobre por hashtag.
+      const mode = config.provider === "apify" ? "discover" : "enrich";
+      const { data, error } = await supabase.functions.invoke(
+        "discover_instagram",
+        { body: { mode } },
+      );
+      if (error) throw error;
+      return data as { encontrados?: number; inseridos?: number; enriquecidos?: number } | null;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        config.provider === "apify"
+          ? `Descoberta: ${data?.encontrados ?? 0} achados, ${data?.inseridos ?? 0} novos`
+          : `Enriquecimento: ${data?.enriquecidos ?? 0} perfis`,
+      );
+      qc.invalidateQueries({ queryKey: ["captacao-execucoes"] });
+    },
+    onError: (e: Error) => toast.error(`Falha: ${e.message || "erro"}`),
+  });
+
+  return (
+    <section className="rounded-lg border border-border bg-bg-secondary p-6 hairline-top">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <AtSign className="size-5 text-muted-foreground" aria-hidden />
+          <div>
+            <h2 className="text-base font-semibold">Instagram</h2>
+            <p className="text-xs text-muted-foreground">
+              Perfis do setor solar por hashtag (Apify) ou enriquecimento (Graph).
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={ativo}
+          onCheckedChange={onToggleAtivo}
+          aria-label={ativo ? "Desativar canal Instagram" : "Ativar canal Instagram"}
+        />
+      </div>
+
+      <div className="mt-5 space-y-5">
+        <div>
+          <div className="label-xs mb-2">Provedor</div>
+          <div className="flex gap-2">
+            {(["graph", "apify"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onChange({ ...config, provider: p })}
+                className={
+                  "rounded-md border px-3 py-1.5 text-sm transition-colors " +
+                  (config.provider === p
+                    ? "border-heaven-orange text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground")
+                }
+              >
+                {p === "graph" ? "Graph (grátis, enriquece)" : "Apify (pago, descobre)"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {config.provider === "graph"
+              ? "Graph API: completa dados de perfis que você já conhece (precisa de @). Dentro do ToS."
+              : "Apify: descobre perfis novos por hashtag (scraping, pago por uso)."}
+          </p>
+        </div>
+
+        {config.provider === "apify" ? (
+          <div>
+            <div className="label-xs mb-2">Hashtags</div>
+            <TagInput
+              value={config.hashtags}
+              onChange={(hashtags) => onChange({ ...config, hashtags })}
+              placeholder="Ex.: energiasolar — Enter para adicionar"
+              removeLabel={(h) => `Remover hashtag ${h}`}
+            />
+          </div>
+        ) : (
+          <div>
+            <div className="label-xs mb-2">@ conhecidos (para enriquecer)</div>
+            <TagInput
+              value={config.handles}
+              onChange={(handles) => onChange({ ...config, handles })}
+              placeholder="Ex.: @solartech — Enter para adicionar"
+              removeLabel={(h) => `Remover ${h}`}
+            />
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <Button type="button" onClick={() => executar.mutate()} disabled={executar.isPending}>
+            {executar.isPending
+              ? <Loader2 className="size-4 animate-spin" aria-hidden />
+              : <Play className="size-4" aria-hidden />}
+            {executar.isPending ? "Executando..." : "Executar agora"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ----------------------------------------------------------- Canal LinkedIn
+
+function CanalLinkedin({
+  ativo,
+  onToggleAtivo,
+  config,
+  onChange,
+}: {
+  ativo: boolean;
+  onToggleAtivo: (v: boolean) => void;
+  config: LinkedInConfig;
+  onChange: (c: LinkedInConfig) => void;
+}) {
+  const qc = useQueryClient();
+  const podeExecutar = ativo && config.habilitado_risco;
+  const executar = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("discover_linkedin", { body: {} });
+      if (error) throw error;
+      return data as { encontrados?: number; inseridos?: number } | null;
+    },
+    onSuccess: (data) =>
+      toast.success(`LinkedIn: ${data?.encontrados ?? 0} achados, ${data?.inseridos ?? 0} novos`),
+    onError: (e: Error) => toast.error(`Falha: ${e.message || "erro"}`),
+  });
+
+  return (
+    <section className="rounded-lg border border-border bg-bg-secondary p-6 hairline-top">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Briefcase className="size-5 text-muted-foreground" aria-hidden />
+          <div>
+            <h2 className="text-base font-semibold">LinkedIn</h2>
+            <p className="text-xs text-muted-foreground">
+              Empresas do setor por busca (scraping de terceiros).
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={ativo}
+          onCheckedChange={onToggleAtivo}
+          aria-label={ativo ? "Desativar canal LinkedIn" : "Ativar canal LinkedIn"}
+        />
+      </div>
+
+      <div className="mt-5 space-y-5">
+        <div className="flex items-start gap-3 rounded-md border border-danger/40 bg-danger/5 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+          <div className="flex-1">
+            <p className="text-xs text-foreground">
+              O scraping de LinkedIn viola o ToS da plataforma e pode bloquear a
+              conta usada. Ative só se entender e aceitar o risco.
+            </p>
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <Switch
+                checked={config.habilitado_risco}
+                onCheckedChange={(v) => onChange({ ...config, habilitado_risco: v })}
+                aria-label="Aceitar risco do scraping de LinkedIn"
+              />
+              Entendo e aceito o risco
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div className="label-xs mb-2">Termos de busca</div>
+          <TagInput
+            value={config.queries}
+            onChange={(queries) => onChange({ ...config, queries })}
+            placeholder="Ex.: integradora solar — Enter para adicionar"
+            removeLabel={(q) => `Remover termo ${q}`}
+          />
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <Button
+            type="button"
+            variant={podeExecutar ? "default" : "ghost"}
+            onClick={() => executar.mutate()}
+            disabled={!podeExecutar || executar.isPending}
+            title={podeExecutar ? undefined : "Ative o canal e aceite o risco para executar"}
+          >
+            {executar.isPending
+              ? <Loader2 className="size-4 animate-spin" aria-hidden />
+              : <Play className="size-4" aria-hidden />}
             {executar.isPending ? "Executando..." : "Executar agora"}
           </Button>
         </div>

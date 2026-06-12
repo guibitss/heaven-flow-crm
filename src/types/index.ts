@@ -7,7 +7,13 @@ export type LeadStatus =
   | "ganho"
   | "perdido";
 
-export type LeadFonte = "google_maps" | "receita_federal" | "indicacao";
+export type LeadFonte =
+  | "google_maps"
+  | "receita_federal"
+  | "instagram"
+  | "linkedin"
+  | "indicacao"
+  | "manual";
 export type LeadTemperatura = "quente" | "morno" | "frio";
 
 export interface Lead {

@@ -8,6 +8,15 @@ import {
   extractPhoneBR,
 } from "../supabase/functions/_shared/instagram.ts";
 import { parseLine } from "../scripts/import_receita.ts";
+import { formatCnae, cnaePrefix } from "../supabase/functions/_shared/cnae.ts";
+
+Deno.test("formatCnae: dígitos puros viram formato pontuado do score nativo", () => {
+  assertEquals(formatCnae("4321500"), "43.21-5/00");
+  assertEquals(formatCnae("3511501"), "35.11-5/01");
+  assertEquals(formatCnae("43.21-5/00"), "43.21-5/00"); // idempotente
+  assertEquals(formatCnae("123"), ""); // inválido
+  assertEquals(cnaePrefix("43.21-5/00"), "43.21");
+});
 
 Deno.test("looksSolar: aceita nomes do setor solar", () => {
   assert(looksSolar("SOLARTECH ENERGIA LTDA"));

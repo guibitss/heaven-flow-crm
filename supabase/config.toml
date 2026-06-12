@@ -6,6 +6,13 @@ project_id = "raifwxclurrnmjovmyyd"
 [functions.discover_google_maps]
 verify_jwt = false
 
+[functions.discover_instagram]
+verify_jwt = false
+
+# LinkedIn: scraping de risco (viola ToS). Nasce desligado; exige opt-in no painel.
+[functions.discover_linkedin]
+verify_jwt = false
+
 # qualify_lead: DEPRECADO em favor do score nativo do CRM (trigger trg_score_leads
 # / calcular_score_lead). Mantido deployado temporariamente; será removido.
 [functions.qualify_lead]
